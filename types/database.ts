@@ -14,6 +14,7 @@ export interface Item {
   name: string
   unit: string
   quantity: number
+  price_per_unit: number
   description: string | null
   created_at: string
   updated_at: string
@@ -47,6 +48,8 @@ export interface Sale {
   id: string
   item_id: string
   quantity: number
+  price_per_unit: number
+  total_price: number
   date: string
   recorded_by: string
   description: string | null

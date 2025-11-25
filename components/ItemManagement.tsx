@@ -12,6 +12,7 @@ export default function ItemManagement() {
     name: '',
     unit: 'pieces',
     quantity: '',
+    price_per_unit: '',
     description: '',
   })
   const [editingItem, setEditingItem] = useState<Item | null>(null)
@@ -46,6 +47,7 @@ export default function ItemManagement() {
             name: formData.name,
             unit: formData.unit,
             quantity: parseInt(formData.quantity, 10) || 0,
+            price_per_unit: parseFloat(formData.price_per_unit) || 0,
             description: formData.description || null,
           })
           .eq('id', editingItem.id)
@@ -57,7 +59,8 @@ export default function ItemManagement() {
         const { error } = await supabase.from('items').insert({
           name: formData.name,
           unit: formData.unit,
-          quantity: parseFloat(formData.quantity) || 0,
+          quantity: parseInt(formData.quantity, 10) || 0,
+          price_per_unit: parseFloat(formData.price_per_unit) || 0,
           description: formData.description || null,
         })
 
@@ -65,7 +68,7 @@ export default function ItemManagement() {
         setMessage({ type: 'success', text: 'Item created successfully!' })
       }
 
-      setFormData({ name: '', unit: 'pieces', quantity: '', description: '' })
+      setFormData({ name: '', unit: 'pieces', quantity: '', price_per_unit: '', description: '' })
       setEditingItem(null)
       setShowForm(false)
       fetchItems()
@@ -83,6 +86,7 @@ export default function ItemManagement() {
       name: item.name,
       unit: item.unit,
       quantity: item.quantity.toString(),
+      price_per_unit: item.price_per_unit.toString(),
       description: item.description || '',
     })
     setShowForm(true)
@@ -110,9 +114,9 @@ export default function ItemManagement() {
           onClick={() => {
             setShowForm(!showForm)
             setEditingItem(null)
-            setFormData({ name: '', unit: 'pieces', quantity: '', description: '' })
+            setFormData({ name: '', unit: 'pieces', quantity: '', price_per_unit: '', description: '' })
           }}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 cursor-pointer transition-colors"
         >
           {showForm ? 'Cancel' : '+ Add New Item'}
         </button>
@@ -160,7 +164,7 @@ export default function ItemManagement() {
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
               >
                 <option value="pieces">Pieces</option>
                 <option value="kg">Kilograms (kg)</option>
@@ -191,6 +195,24 @@ export default function ItemManagement() {
             </div>
 
             <div>
+              <label htmlFor="price_per_unit" className="block text-sm font-medium text-gray-700 mb-1">
+                Price Per Unit
+              </label>
+              <input
+                id="price_per_unit"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price_per_unit}
+                onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-gray-500">Price for one {formData.unit}</p>
+            </div>
+
+            <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                 Description (optional)
               </label>
@@ -207,7 +229,7 @@ export default function ItemManagement() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
             >
               {loading ? 'Saving...' : editingItem ? 'Update Item' : 'Create Item'}
             </button>
@@ -232,6 +254,9 @@ export default function ItemManagement() {
                   Quantity
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price Per Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -242,7 +267,7 @@ export default function ItemManagement() {
             <tbody className="bg-white divide-y divide-gray-200">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
                     No items found. Add your first item to get started.
                   </td>
                 </tr>
@@ -256,17 +281,20 @@ export default function ItemManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.quantity} {item.unit}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₦{item.price_per_unit.toFixed(2)}/{item.unit}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.description || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleEdit(item)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        className="text-indigo-600 hover:text-indigo-900 mr-4 cursor-pointer"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 cursor-pointer"
                       >
                         Delete
                       </button>

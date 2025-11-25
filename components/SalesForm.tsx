@@ -10,6 +10,8 @@ export default function SalesForm() {
   const [sales, setSales] = useState<(Sale & { item?: Item; recorded_by_profile?: Profile })[]>([])
   const [selectedItem, setSelectedItem] = useState('')
   const [quantity, setQuantity] = useState('')
+  const [pricePerUnit, setPricePerUnit] = useState('')
+  const [totalPrice, setTotalPrice] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [loading, setLoading] = useState(false)
@@ -22,6 +24,19 @@ export default function SalesForm() {
     fetchSales()
     checkUserRole()
   }, [])
+
+  // Calculate price when item or quantity changes
+  useEffect(() => {
+    if (selectedItem && quantity) {
+      const selectedItemData = items.find(item => item.id === selectedItem)
+      if (selectedItemData && selectedItemData.price_per_unit > 0) {
+        const qty = parseFloat(quantity) || 0
+        const price = selectedItemData.price_per_unit
+        setPricePerUnit(price.toString())
+        setTotalPrice((qty * price).toFixed(2))
+      }
+    }
+  }, [selectedItem, quantity, items])
 
   const checkUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -76,40 +91,88 @@ export default function SalesForm() {
 
       if (!user) throw new Error('Not authenticated')
 
-      if (editingSale) {
-        // Update existing sale
-        const { error } = await supabase
-          .from('sales')
-          .update({
-            item_id: selectedItem,
-            quantity: parseFloat(quantity),
-            date,
-            description: description || null,
-          })
-          .eq('id', editingSale.id)
+      // Restrict staff to only record sales for today
+      const today = format(new Date(), 'yyyy-MM-dd')
+      if (userRole === 'staff' && date !== today) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Staff can only record sales for today. Please select today\'s date.' 
+        })
+        setLoading(false)
+        return
+      }
 
-        if (error) throw error
+      // Validate quantity doesn't exceed available stock
+      if (selectedItem) {
+        const selectedItemData = items.find(item => item.id === selectedItem)
+        const quantityValue = parseFloat(quantity)
+        
+        if (selectedItemData && quantityValue > selectedItemData.quantity) {
+          setMessage({ 
+            type: 'error', 
+            text: `Cannot record sales of ${quantityValue}. Available stock: ${selectedItemData.quantity} ${selectedItemData.unit}` 
+          })
+          setLoading(false)
+          return
+        }
+      }
+
+      if (editingSale) {
+        // Update existing sale via API
+        const response = await fetch('/api/sales/update', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sale_id: editingSale.id,
+              item_id: selectedItem,
+              quantity: parseFloat(quantity),
+              price_per_unit: parseFloat(pricePerUnit) || 0,
+              total_price: parseFloat(totalPrice) || 0,
+              date,
+              description: description || null,
+              old_quantity: editingSale.quantity,
+            }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to update sales')
+        }
+
         setMessage({ type: 'success', text: 'Sales record updated successfully!' })
         setEditingSale(null)
       } else {
-        // Create new sale
-        const { error } = await supabase.from('sales').insert({
-          item_id: selectedItem,
-          quantity: parseFloat(quantity),
-          date,
-          recorded_by: user.id,
-          description: description || null,
+        // Create new sale via API
+        const response = await fetch('/api/sales/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              item_id: selectedItem,
+              quantity: parseFloat(quantity),
+              price_per_unit: parseFloat(pricePerUnit) || 0,
+              total_price: parseFloat(totalPrice) || 0,
+              date,
+              description: description || null,
+              user_id: user.id,
+            }),
         })
 
-        if (error) throw error
-        setMessage({ type: 'success', text: 'Sales recorded successfully!' })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to record sales')
+        }
+
+        setMessage({ type: 'success', text: 'Sales recorded successfully! Item quantity updated.' })
       }
 
       setQuantity('')
+      setPricePerUnit('')
+      setTotalPrice('')
       setDescription('')
       setSelectedItem('')
       setDate(format(new Date(), 'yyyy-MM-dd'))
-      fetchSales()
+      await fetchSales()
+      await fetchItems() // Refresh items to show updated quantities
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to record sales'
       setMessage({ type: 'error', text: errorMessage })
@@ -122,6 +185,8 @@ export default function SalesForm() {
     setEditingSale(sale)
     setSelectedItem(sale.item_id)
     setQuantity(sale.quantity.toString())
+    setPricePerUnit(sale.price_per_unit.toString())
+    setTotalPrice(sale.total_price.toString())
     setDate(sale.date)
     setDescription(sale.description || '')
   }
@@ -129,23 +194,60 @@ export default function SalesForm() {
   const handleCancelEdit = () => {
     setEditingSale(null)
     setQuantity('')
+    setPricePerUnit('')
+    setTotalPrice('')
     setDescription('')
     setSelectedItem('')
     setDate(format(new Date(), 'yyyy-MM-dd'))
   }
 
+  // Calculate total price when price per unit or quantity changes manually
+  const handlePricePerUnitChange = (value: string) => {
+    setPricePerUnit(value)
+    const qty = parseFloat(quantity) || 0
+    const price = parseFloat(value) || 0
+    setTotalPrice((qty * price).toFixed(2))
+  }
+
+  const handleQuantityChange = (value: string) => {
+    setQuantity(value)
+    const qty = parseFloat(value) || 0
+    const price = parseFloat(pricePerUnit) || 0
+    if (price > 0) {
+      setTotalPrice((qty * price).toFixed(2))
+    }
+  }
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this sales record?')) return
+    if (!confirm('Are you sure you want to delete this sales record? This will restore the item quantity.')) return
 
     setLoading(true)
-    const { error } = await supabase.from('sales').delete().eq('id', id)
-    if (error) {
-      setMessage({ type: 'error', text: 'Failed to delete sales record' })
-    } else {
-      setMessage({ type: 'success', text: 'Sales record deleted successfully!' })
+    try {
+      const saleToDelete = sales.find(s => s.id === id)
+      if (!saleToDelete) {
+        setMessage({ type: 'error', text: 'Sales record not found' })
+        setLoading(false)
+        return
+      }
+
+      const response = await fetch(`/api/sales/delete?sale_id=${id}&item_id=${saleToDelete.item_id}&quantity=${saleToDelete.quantity}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete sales record')
+      }
+
+      setMessage({ type: 'success', text: 'Sales record deleted successfully! Item quantity restored.' })
       fetchSales()
+      fetchItems() // Refresh items to show updated quantities
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete sales record'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -176,8 +278,14 @@ export default function SalesForm() {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+            disabled={userRole === 'staff'}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer ${
+              userRole === 'staff' ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
           />
+          {userRole === 'staff' && (
+            <p className="mt-1 text-xs text-gray-500">Staff can only record sales for today</p>
+          )}
         </div>
 
         <div>
@@ -189,12 +297,12 @@ export default function SalesForm() {
             value={selectedItem}
             onChange={(e) => setSelectedItem(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
           >
             <option value="">Select an item</option>
             {items.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} ({item.unit})
+                {item.name} ({item.unit}) - Available: {item.quantity}
               </option>
             ))}
           </select>
@@ -203,18 +311,72 @@ export default function SalesForm() {
         <div>
           <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
             Quantity Used
+            {selectedItem && (
+              <span className="ml-2 text-xs text-gray-500">
+                (Max: {items.find(item => item.id === selectedItem)?.quantity || 0} {items.find(item => item.id === selectedItem)?.unit || ''})
+              </span>
+            )}
           </label>
           <input
             id="quantity"
             type="number"
-            step="0.01"
+            step="1"
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => handleQuantityChange(e.target.value)}
             required
             min="0"
+            max={selectedItem ? items.find(item => item.id === selectedItem)?.quantity : undefined}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+            placeholder="0"
+          />
+          {selectedItem && (
+            <p className="mt-1 text-xs text-gray-500">
+              Available stock: {items.find(item => item.id === selectedItem)?.quantity || 0} {items.find(item => item.id === selectedItem)?.unit || ''}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="price_per_unit" className="block text-sm font-medium text-gray-700 mb-1">
+            Price Per Unit (₦)
+          </label>
+          <input
+            id="price_per_unit"
+            type="number"
+            step="0.01"
+            min="0"
+            value={pricePerUnit}
+            onChange={(e) => handlePricePerUnitChange(e.target.value)}
+            required
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
             placeholder="0.00"
           />
+          {selectedItem && (() => {
+            const item = items.find(item => item.id === selectedItem)
+            return item && item.price_per_unit > 0 ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Default: ₦{item.price_per_unit.toFixed(2)}/{item.unit}
+              </p>
+            ) : null
+          })()}
+        </div>
+
+        <div>
+          <label htmlFor="total_price" className="block text-sm font-medium text-gray-700 mb-1">
+            Total Price (₦)
+          </label>
+          <input
+            id="total_price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={totalPrice}
+            onChange={(e) => setTotalPrice(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black bg-gray-50"
+            placeholder="0.00"
+          />
+          <p className="mt-1 text-xs text-gray-500">Calculated automatically, but can be edited if needed</p>
         </div>
 
         <div>
@@ -235,7 +397,7 @@ export default function SalesForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             {loading ? 'Saving...' : editingSale ? 'Update Sales' : 'Record Sales'}
           </button>
@@ -244,7 +406,7 @@ export default function SalesForm() {
               type="button"
               onClick={handleCancelEdit}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
             >
               Cancel
             </button>
@@ -262,6 +424,8 @@ export default function SalesForm() {
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price/Unit</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Price</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                   {userRole === 'admin' && (
                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -280,6 +444,12 @@ export default function SalesForm() {
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                       {sale.quantity} {sale.item?.unit || ''}
                     </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      ₦{sale.price_per_unit.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₦{sale.total_price.toFixed(2)}
+                    </td>
                     <td className="px-3 py-2 text-sm text-gray-900">
                       {sale.description || '-'}
                     </td>
@@ -287,13 +457,13 @@ export default function SalesForm() {
                       <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(sale)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          className="text-indigo-600 hover:text-indigo-900 mr-3 cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(sale.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 cursor-pointer"
                         >
                           Delete
                         </button>

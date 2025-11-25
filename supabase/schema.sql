@@ -20,6 +20,7 @@ CREATE TABLE public.items (
   name TEXT NOT NULL UNIQUE,
   unit TEXT NOT NULL DEFAULT 'pieces', -- e.g., 'kg', 'liters', 'pieces', 'bags'
   quantity INTEGER NOT NULL DEFAULT 0,
+  price_per_unit DECIMAL(10, 2) NOT NULL DEFAULT 0,
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
@@ -54,6 +55,8 @@ CREATE TABLE public.sales (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   item_id UUID REFERENCES public.items(id) ON DELETE CASCADE NOT NULL,
   quantity DECIMAL(10, 2) NOT NULL,
+  price_per_unit DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  total_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   date DATE NOT NULL,
   recorded_by UUID REFERENCES public.profiles(id) NOT NULL,
   description TEXT, -- e.g., "Rice, Egusi & Fufu"

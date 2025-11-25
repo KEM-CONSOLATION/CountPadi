@@ -105,7 +105,7 @@ export default function UserManagement() {
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
         >
           {showCreateForm ? 'Cancel' : '+ Create User'}
         </button>
@@ -180,7 +180,7 @@ export default function UserManagement() {
                 id="role"
                 value={newUser.role}
                 onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'admin' | 'staff' })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
               >
                 <option value="staff">Staff</option>
                 <option value="admin">Admin</option>
@@ -191,7 +191,7 @@ export default function UserManagement() {
               <button
                 type="submit"
                 disabled={creating}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {creating ? 'Creating...' : 'Create User'}
               </button>
@@ -202,7 +202,7 @@ export default function UserManagement() {
                   setNewUser({ email: '', password: '', fullName: '', role: 'staff' })
                   setError(null)
                 }}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 cursor-pointer"
               >
                 Cancel
               </button>
@@ -269,14 +269,14 @@ export default function UserManagement() {
                       {user.role === 'admin' ? (
                         <button
                           onClick={() => updateUserRole(user.id, 'staff')}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
                         >
                           Set as Staff
                         </button>
                       ) : (
                         <button
                           onClick={() => updateUserRole(user.id, 'admin')}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
                         >
                           Set as Admin
                         </button>

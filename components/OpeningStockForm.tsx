@@ -76,6 +76,21 @@ export default function OpeningStockForm() {
 
       if (!user) throw new Error('Not authenticated')
 
+      // Validate opening stock doesn't exceed item's original quantity
+      if (selectedItem) {
+        const selectedItemData = items.find(item => item.id === selectedItem)
+        const quantityValue = parseFloat(quantity)
+        
+        if (selectedItemData && quantityValue > selectedItemData.quantity) {
+          setMessage({ 
+            type: 'error', 
+            text: `Opening stock cannot exceed the item's original quantity (${selectedItemData.quantity} ${selectedItemData.unit})` 
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       if (editingStock) {
         // Update existing stock
         const { error } = await supabase
@@ -194,15 +209,20 @@ export default function OpeningStockForm() {
             value={selectedItem}
             onChange={(e) => setSelectedItem(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
           >
             <option value="">Select an item</option>
             {items.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} ({item.unit})
+                {item.name} ({item.unit}) - Max: {item.quantity}
               </option>
             ))}
           </select>
+          {selectedItem && (
+            <p className="mt-1 text-xs text-gray-500">
+              Maximum opening stock: {items.find(item => item.id === selectedItem)?.quantity || 0} {items.find(item => item.id === selectedItem)?.unit || ''}
+            </p>
+          )}
         </div>
 
         <div>
@@ -240,7 +260,7 @@ export default function OpeningStockForm() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             {loading ? 'Saving...' : editingStock ? 'Update Stock' : 'Record Opening Stock'}
           </button>
@@ -249,7 +269,7 @@ export default function OpeningStockForm() {
               type="button"
               onClick={handleCancelEdit}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
             >
               Cancel
             </button>
@@ -288,13 +308,13 @@ export default function OpeningStockForm() {
                       <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(stock)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          className="text-indigo-600 hover:text-indigo-900 mr-3 cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(stock.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 cursor-pointer"
                         >
                           Delete
                         </button>
