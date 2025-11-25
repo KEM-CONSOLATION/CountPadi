@@ -82,7 +82,6 @@ export default function SalesForm() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      // Error fetching sales
     } else {
       setSales(data || [])
     }
@@ -112,7 +111,6 @@ export default function SalesForm() {
         return
       }
 
-      // Validate quantity doesn't exceed item's current quantity minus sales already made
       if (selectedItem) {
         const quantityValue = parseFloat(quantity)
         
@@ -125,7 +123,6 @@ export default function SalesForm() {
           return
         }
 
-        // Fetch fresh item data to ensure we have the latest quantity
         const { data: freshItem, error: itemError } = await supabase
           .from('items')
           .select('quantity, name, unit')
@@ -141,7 +138,6 @@ export default function SalesForm() {
           return
         }
 
-        // Get total sales for the date so far (excluding current sale if editing)
         const { data: existingSales } = await supabase
           .from('sales')
           .select('id, quantity')
@@ -149,12 +145,10 @@ export default function SalesForm() {
           .eq('date', date)
 
         const totalSalesSoFar = existingSales?.reduce((sum, s) => {
-          // Exclude the sale being edited
           if (editingSale && s.id === editingSale.id) return sum
           return sum + parseFloat(s.quantity.toString())
         }, 0) || 0
         
-        // Available stock = Item's current quantity - Sales already made today
         const availableStock = freshItem.quantity - totalSalesSoFar
         
         if (availableStock <= 0) {
@@ -176,9 +170,8 @@ export default function SalesForm() {
         }
       }
 
-      if (editingSale) {
-        // Update existing sale via API
-        const response = await fetch('/api/sales/update', {
+        if (editingSale) {
+          const response = await fetch('/api/sales/update', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -201,9 +194,8 @@ export default function SalesForm() {
 
         setMessage({ type: 'success', text: 'Sales record updated successfully!' })
         setEditingSale(null)
-      } else {
-        // Create new sale via API
-        const response = await fetch('/api/sales/create', {
+        } else {
+          const response = await fetch('/api/sales/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -305,7 +297,7 @@ export default function SalesForm() {
 
       setMessage({ type: 'success', text: 'Sales record deleted successfully! Item quantity restored.' })
       fetchSales()
-      fetchItems() // Refresh items to show updated quantities
+      fetchItems()
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete sales record'
       setMessage({ type: 'error', text: errorMessage })

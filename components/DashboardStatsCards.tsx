@@ -29,13 +29,11 @@ export default function DashboardStatsCards() {
         .select('id')
         .eq('date', today)
 
-      // Fetch closing stock count for today
       const { data: closingData } = await supabase
         .from('closing_stock')
         .select('id')
         .eq('date', today)
 
-      // Fetch today's sales
       const { data: salesData } = await supabase
         .from('sales')
         .select('total_price')
@@ -51,7 +49,6 @@ export default function DashboardStatsCards() {
         todaySalesAmount: salesAmount,
       })
     } catch (error) {
-      // Error fetching stats
     } finally {
       setLoading(false)
     }
@@ -93,7 +90,6 @@ export default function DashboardStatsCards() {
         <p className="text-gray-600 text-sm">Items recorded today</p>
       </Link>
 
-      {/* Closing Stock Card */}
       <Link
         href="/dashboard/closing-stock"
         className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group"
@@ -113,7 +109,6 @@ export default function DashboardStatsCards() {
         <p className="text-gray-600 text-sm">Items recorded today</p>
       </Link>
 
-      {/* Sales/Usage Card */}
       <Link
         href="/dashboard/sales"
         className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group"

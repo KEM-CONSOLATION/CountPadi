@@ -42,7 +42,6 @@ export default function ItemManagement() {
 
     try {
       if (editingItem) {
-        // Update existing item
         const { error } = await supabase
           .from('items')
           .update({
@@ -59,7 +58,6 @@ export default function ItemManagement() {
         if (error) throw error
         setMessage({ type: 'success', text: 'Item updated successfully!' })
       } else {
-        // Create new item
         const { error } = await supabase.from('items').insert({
           name: formData.name,
           unit: formData.unit,

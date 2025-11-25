@@ -39,7 +39,6 @@ export default function SalesReports() {
         await fetchMonthlySales()
       }
     } catch (error) {
-      // Error fetching reports
     } finally {
       setLoading(false)
     }
@@ -127,7 +126,6 @@ export default function SalesReports() {
     doc.setFontSize(18)
     doc.text('La Cuisine - Sales Report', 14, 20)
     
-    // Period
     doc.setFontSize(12)
     const periodText = selectedPeriod === 'daily' 
       ? `Daily Report - ${format(new Date(selectedDate), 'MMMM dd, yyyy')}`
@@ -136,7 +134,6 @@ export default function SalesReports() {
       : `Monthly Report - ${format(startOfMonth(new Date(selectedDate)), 'MMMM yyyy')}`
     doc.text(periodText, 14, 30)
     
-    // Summary
     if (currentReport) {
       doc.setFontSize(10)
       doc.text(`Total Sales: ₦${currentReport.total_sales.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 40)
@@ -144,7 +141,6 @@ export default function SalesReports() {
       doc.text(`Items Sold: ${currentReport.total_items}`, 14, 52)
     }
     
-    // Table
     const tableData = salesDetails.map(sale => [
       format(new Date(sale.date), 'MMM dd, yyyy'),
       sale.item?.name || 'Unknown',

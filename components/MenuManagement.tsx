@@ -34,14 +34,6 @@ export default function MenuManagement() {
   useEffect(() => {
     fetchCategories()
     fetchItems()
-    
-    // Refresh every 30 seconds to show updates
-    const interval = setInterval(() => {
-      fetchCategories()
-      fetchItems()
-    }, 30000)
-    
-    return () => clearInterval(interval)
   }, [])
 
   const fetchCategories = async () => {

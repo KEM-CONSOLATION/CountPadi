@@ -20,7 +20,6 @@ export default function HistoryView() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch opening stocks
       const { data: openingData } = await supabase
         .from('opening_stock')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -31,7 +30,6 @@ export default function HistoryView() {
         setOpeningStocks(openingData as (OpeningStock & { item?: Item; recorded_by_profile?: Profile })[])
       }
 
-      // Fetch closing stocks
       const { data: closingData } = await supabase
         .from('closing_stock')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -42,7 +40,6 @@ export default function HistoryView() {
         setClosingStocks(closingData as (ClosingStock & { item?: Item; recorded_by_profile?: Profile })[])
       }
 
-      // Fetch sales
       const { data: salesData } = await supabase
         .from('sales')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -53,7 +50,6 @@ export default function HistoryView() {
         setSales(salesData as (Sale & { item?: Item; recorded_by_profile?: Profile })[])
       }
     } catch (error) {
-      // Error fetching data
     } finally {
       setLoading(false)
     }

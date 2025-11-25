@@ -92,7 +92,6 @@ export default function ProfitLossView() {
       setTotalExpenses(expensesTotal)
       setNetProfit(profitTotal - expensesTotal)
     } catch (error) {
-      // Error calculating profit/loss
     } finally {
       setLoading(false)
     }

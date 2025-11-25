@@ -23,7 +23,6 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch opening stocks
       const { data: openingData } = await supabase
         .from('opening_stock')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -34,7 +33,6 @@ export default function AdminDashboard() {
         setOpeningStocks(openingData as (OpeningStock & { item: Item; recorded_by_profile: Profile })[])
       }
 
-      // Fetch closing stocks
       const { data: closingData } = await supabase
         .from('closing_stock')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -45,7 +43,6 @@ export default function AdminDashboard() {
         setClosingStocks(closingData as (ClosingStock & { item: Item; recorded_by_profile: Profile })[])
       }
 
-      // Fetch sales
       const { data: salesData } = await supabase
         .from('sales')
         .select('*, item:items(*), recorded_by_profile:profiles(*)')
@@ -56,7 +53,6 @@ export default function AdminDashboard() {
         setSales(salesData as (Sale & { item: Item; recorded_by_profile: Profile })[])
       }
     } catch {
-      // Error fetching data
     } finally {
       setLoading(false)
     }
@@ -71,7 +67,7 @@ export default function AdminDashboard() {
 
       <div className="mb-6">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto -mx-6 px-6">
             <button
               onClick={() => setActiveTab('overview')}
               className={`${

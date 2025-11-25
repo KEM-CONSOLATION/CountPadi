@@ -53,7 +53,7 @@ export default function UserManagement() {
       if (updateError) throw updateError
 
       setSuccess(`User role updated to ${newRole}`)
-      fetchUsers() // Refresh the list
+      fetchUsers()
       
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000)

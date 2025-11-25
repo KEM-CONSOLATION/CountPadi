@@ -42,7 +42,6 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
         setReport(data)
       }
     } catch (error) {
-      // Error fetching report
     } finally {
       setLoading(false)
     }

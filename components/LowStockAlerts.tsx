@@ -28,7 +28,6 @@ export default function LowStockAlerts() {
         setLowStockItems(lowStock)
       }
     } catch (error) {
-      // Error fetching items
     } finally {
       setLoading(false)
     }

@@ -28,7 +28,6 @@ export default function SalesTrendChart() {
         await fetchMonthlyData()
       }
     } catch (error) {
-      // Error fetching data
     } finally {
       setLoading(false)
     }
