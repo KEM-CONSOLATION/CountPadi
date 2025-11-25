@@ -1,0 +1,284 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { Item } from '@/types/database'
+
+export default function ItemManagement() {
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    unit: 'pieces',
+    quantity: '',
+    description: '',
+  })
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    fetchItems()
+  }, [])
+
+  const fetchItems = async () => {
+    setLoading(true)
+    const { data, error } = await supabase.from('items').select('*').order('name')
+    if (error) {
+      setMessage({ type: 'error', text: 'Failed to fetch items' })
+    } else {
+      setItems(data || [])
+    }
+    setLoading(false)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      if (editingItem) {
+        // Update existing item
+        const { error } = await supabase
+          .from('items')
+          .update({
+            name: formData.name,
+            unit: formData.unit,
+            quantity: parseInt(formData.quantity, 10) || 0,
+            description: formData.description || null,
+          })
+          .eq('id', editingItem.id)
+
+        if (error) throw error
+        setMessage({ type: 'success', text: 'Item updated successfully!' })
+      } else {
+        // Create new item
+        const { error } = await supabase.from('items').insert({
+          name: formData.name,
+          unit: formData.unit,
+          quantity: parseFloat(formData.quantity) || 0,
+          description: formData.description || null,
+        })
+
+        if (error) throw error
+        setMessage({ type: 'success', text: 'Item created successfully!' })
+      }
+
+      setFormData({ name: '', unit: 'pieces', quantity: '', description: '' })
+      setEditingItem(null)
+      setShowForm(false)
+      fetchItems()
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save item'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (item: Item) => {
+    setEditingItem(item)
+    setFormData({
+      name: item.name,
+      unit: item.unit,
+      quantity: item.quantity.toString(),
+      description: item.description || '',
+    })
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) return
+
+    setLoading(true)
+    const { error } = await supabase.from('items').delete().eq('id', id)
+    if (error) {
+      setMessage({ type: 'error', text: 'Failed to delete item' })
+    } else {
+      setMessage({ type: 'success', text: 'Item deleted successfully!' })
+      fetchItems()
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-gray-900">Manage Items</h2>
+        <button
+          onClick={() => {
+            setShowForm(!showForm)
+            setEditingItem(null)
+            setFormData({ name: '', unit: 'pieces', quantity: '', description: '' })
+          }}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+        >
+          {showForm ? 'Cancel' : '+ Add New Item'}
+        </button>
+      </div>
+
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded ${
+            message.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {showForm && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingItem ? 'Edit Item' : 'Add New Item'}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Item Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+                placeholder="e.g., Rice, Egusi, Fufu"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
+                Unit
+              </label>
+              <select
+                id="unit"
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+              >
+                <option value="pieces">Pieces</option>
+                <option value="kg">Kilograms (kg)</option>
+                <option value="g">Grams (g)</option>
+                <option value="liters">Liters</option>
+                <option value="ml">Milliliters (ml)</option>
+                <option value="bags">Bags</option>
+                <option value="packets">Packets</option>
+                <option value="boxes">Boxes</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                Current Quantity
+              </label>
+              <input
+                id="quantity"
+                type="number"
+                step="1"
+                min="0"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description (optional)
+              </label>
+              <textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+                placeholder="Additional details about this item..."
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Saving...' : editingItem ? 'Update Item' : 'Create Item'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {loading && !showForm ? (
+        <div className="text-center py-8">Loading items...</div>
+      ) : (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Quantity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                    No items found. Add your first item to get started.
+                  </td>
+                </tr>
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {item.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.unit}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {item.quantity} {item.unit}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{item.description || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+

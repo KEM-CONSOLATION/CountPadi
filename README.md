@@ -1,36 +1,180 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Restaurant Inventory System
 
-## Getting Started
+A full-stack inventory management system for restaurants built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
-First, run the development server:
+## Features
+
+- **Opening Stock Tracking**: Record inventory at the start of each day
+- **Closing Stock Tracking**: Record inventory at the end of each day
+- **Sales/Usage Tracking**: Track items used during daily sales (e.g., Rice, Egusi & Fufu)
+- **Admin Dashboard**: Monitor all activities, view opening/closing stocks, and sales for any date
+- **Item Management**: Admins can add, edit, and delete inventory items
+- **Role-Based Access**: Separate views for admin and staff members
+- **Authentication**: Secure login/signup system
+
+## Tech Stack
+
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS 4
+- **Backend**: Supabase (PostgreSQL + Authentication + Row Level Security)
+- **Date Handling**: date-fns
+
+## Prerequisites
+
+- Node.js 18+ installed
+- A Supabase account (free tier available at [supabase.com](https://supabase.com))
+
+## Setup Instructions
+
+### 1. Clone and Install Dependencies
+
+```bash
+cd restaurant-inventory
+npm install
+```
+
+### 2. Set Up Supabase
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Once your project is ready, go to **Settings** → **API**
+3. Copy your **Project URL** and **anon/public key**
+
+### 3. Configure Environment Variables
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Open `.env.local` and add your Supabase credentials:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+### 4. Set Up Database Schema
+
+1. In your Supabase dashboard, go to **SQL Editor**
+2. Open the file `supabase/schema.sql` from this project
+3. Copy and paste the entire SQL script into the SQL Editor
+4. Click **Run** to execute the schema
+
+This will create:
+- `profiles` table (extends auth.users)
+- `items` table (inventory items)
+- `opening_stock` table
+- `closing_stock` table
+- `sales` table
+- Row Level Security (RLS) policies
+- Triggers for automatic profile creation
+
+### 5. Create Admin User
+
+After running the schema, you need to create an admin user:
+
+1. In Supabase dashboard, go to **Authentication** → **Users**
+2. Click **Add User** → **Create New User**
+3. Enter email and password
+4. After creating the user, go to **Table Editor** → **profiles**
+5. Find your user and update the `role` field to `'admin'`
+
+Alternatively, you can use SQL:
+```sql
+UPDATE profiles SET role = 'admin' WHERE email = 'your-admin-email@example.com';
+```
+
+### 6. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### For Staff Members
 
-## Learn More
+1. **Sign up** or **log in** with your credentials
+2. On the dashboard, you can:
+   - Record **Opening Stock** (start of day)
+   - Record **Closing Stock** (end of day)
+   - Record **Sales/Usage** (items used during sales)
 
-To learn more about Next.js, take a look at the following resources:
+### For Admin
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Log in** with admin credentials
+2. Click **Admin View** in the navigation
+3. View all activities by selecting a date
+4. Manage inventory items in the **Manage Items** tab
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+restaurant-inventory/
+├── app/
+│   ├── admin/          # Admin dashboard page
+│   ├── dashboard/      # Staff dashboard page
+│   ├── login/          # Login page
+│   ├── signup/         # Signup page
+│   └── layout.tsx      # Root layout
+├── components/
+│   ├── AdminDashboard.tsx      # Admin dashboard component
+│   ├── DashboardLayout.tsx     # Shared layout component
+│   ├── ItemManagement.tsx      # Item CRUD component
+│   ├── OpeningStockForm.tsx    # Opening stock form
+│   ├── ClosingStockForm.tsx    # Closing stock form
+│   └── SalesForm.tsx           # Sales form
+├── lib/
+│   └── supabase/
+│       ├── client.ts   # Client-side Supabase client
+│       └── server.ts   # Server-side Supabase client
+├── supabase/
+│   └── schema.sql      # Database schema
+├── types/
+│   └── database.ts     # TypeScript types
+└── middleware.ts       # Auth middleware
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Database Schema
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Tables
+
+- **profiles**: User profiles with roles (admin/staff)
+- **items**: Inventory items (name, unit, description)
+- **opening_stock**: Opening stock records (one per item per day)
+- **closing_stock**: Closing stock records (one per item per day)
+- **sales**: Sales/usage records (multiple per item per day)
+
+### Security
+
+- Row Level Security (RLS) is enabled on all tables
+- Staff can view and insert records
+- Admins have full access
+- Only admins can manage items
+
+## Deployment
+
+### Deploy to Vercel
+
+1. Push your code to GitHub
+2. Import the project in [Vercel](https://vercel.com)
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+### Environment Variables for Production
+
+Make sure to set these in your hosting platform:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Support
+
+For issues or questions, please check:
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+
+## License
+
+MIT
