@@ -30,7 +30,7 @@ CREATE TABLE public.items (
 -- Opening Stock table (start of day)
 CREATE TABLE public.opening_stock (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  item_id UUID REFERENCES public.items(id) ON DELETE CASCADE NOT NULL,
+  item_id UUID REFERENCES public.items(id) ON DELETE RESTRICT NOT NULL,
   quantity DECIMAL(10, 2) NOT NULL,
   date DATE NOT NULL,
   recorded_by UUID REFERENCES public.profiles(id) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE public.opening_stock (
 -- Closing Stock table (end of day)
 CREATE TABLE public.closing_stock (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  item_id UUID REFERENCES public.items(id) ON DELETE CASCADE NOT NULL,
+  item_id UUID REFERENCES public.items(id) ON DELETE RESTRICT NOT NULL,
   quantity DECIMAL(10, 2) NOT NULL,
   date DATE NOT NULL,
   recorded_by UUID REFERENCES public.profiles(id) NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE public.closing_stock (
 -- Sales/Usage table (items used during sales)
 CREATE TABLE public.sales (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  item_id UUID REFERENCES public.items(id) ON DELETE CASCADE NOT NULL,
+  item_id UUID REFERENCES public.items(id) ON DELETE RESTRICT NOT NULL,
   quantity DECIMAL(10, 2) NOT NULL,
   price_per_unit DECIMAL(10, 2) NOT NULL DEFAULT 0,
   total_price DECIMAL(10, 2) NOT NULL DEFAULT 0,

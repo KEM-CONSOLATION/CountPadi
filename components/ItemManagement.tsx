@@ -97,12 +97,50 @@ export default function ItemManagement() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this item?')) return
+    // Check if item has any sales records
+    const { data: salesData } = await supabase
+      .from('sales')
+      .select('id')
+      .eq('item_id', id)
+      .limit(1)
+
+    const { data: openingStockData } = await supabase
+      .from('opening_stock')
+      .select('id')
+      .eq('item_id', id)
+      .limit(1)
+
+    const { data: closingStockData } = await supabase
+      .from('closing_stock')
+      .select('id')
+      .eq('item_id', id)
+      .limit(1)
+
+    const hasRecords = (salesData && salesData.length > 0) || 
+                      (openingStockData && openingStockData.length > 0) || 
+                      (closingStockData && closingStockData.length > 0)
+
+    if (hasRecords) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Cannot delete item: This item has sales, opening stock, or closing stock records. To preserve audit history, items with transaction records cannot be deleted.' 
+      })
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) return
 
     setLoading(true)
     const { error } = await supabase.from('items').delete().eq('id', id)
     if (error) {
-      setMessage({ type: 'error', text: 'Failed to delete item' })
+      if (error.code === '23503') {
+        setMessage({ 
+          type: 'error', 
+          text: 'Cannot delete item: This item has related records (sales, opening stock, or closing stock). To preserve audit history, items with transaction records cannot be deleted.' 
+        })
+      } else {
+        setMessage({ type: 'error', text: `Failed to delete item: ${error.message}` })
+      }
     } else {
       setMessage({ type: 'success', text: 'Item deleted successfully!' })
       fetchItems()
