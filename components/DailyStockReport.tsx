@@ -56,6 +56,7 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
   const [report, setReport] = useState<StockReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [calculating, setCalculating] = useState(false)
   const [editingItems, setEditingItems] = useState<Record<string, EditingItemData>>({})
   const [currentTime, setCurrentTime] = useState(new Date())
   const [userRole, setUserRole] = useState<'admin' | 'staff' | null>(null)
@@ -97,7 +98,7 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
       if (data.success) {
         setReport(data)
         
-        // Only auto-save/auto-create for today's date
+        // Auto-save/auto-create for today's date
         if (selectedDate === today) {
           // Auto-save closing stock if viewing closing stock report
           if (type === 'closing') {
@@ -108,6 +109,10 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
           if (type === 'opening') {
             await autoCreateOpeningStock()
           }
+        } else if (isPastDate && type === 'closing' && data.report && data.report.length > 0) {
+          // For past dates: Auto-calculate and save closing stock if it doesn't exist
+          // This ensures closing stock is always calculated from opening stock + restocking - sales - waste/spoilage
+          await autoCalculatePastClosingStock(data)
         }
       }
     } catch {
@@ -185,6 +190,86 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
     } catch (error) {
       // Silently fail - don't interrupt user experience
       console.error('Auto-create opening stock failed:', error)
+    }
+  }
+
+  const autoCalculatePastClosingStock = async (reportData?: StockReport) => {
+    // Use provided report data or current report state
+    const dataToUse = reportData || report
+    if (!dataToUse || !dataToUse.report || dataToUse.report.length === 0) return
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Check if closing stock already exists for this date
+      const { data: existingClosing } = await supabase
+        .from('closing_stock')
+        .select('item_id')
+        .eq('date', selectedDate)
+        .limit(1)
+
+      // If closing stock already exists (manually entered), don't auto-calculate
+      // This preserves manual overrides
+      if (existingClosing && existingClosing.length > 0) {
+        return
+      }
+
+      // Auto-calculate and save closing stock using the same API
+      const response = await fetch('/api/stock/auto-save-closing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          user_id: user.id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Refresh the report to show the calculated values
+        await fetchReport()
+      }
+      // Silently fail if there's an error - user can still manually calculate
+    } catch {
+      // Silently fail - user can still manually calculate or enter values
+    }
+  }
+
+  const handleAutoCalculateClosing = async () => {
+    if (type !== 'closing' || !isPastDate) return
+
+    setCalculating(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('You must be logged in to calculate closing stock.')
+        return
+      }
+
+      const response = await fetch('/api/stock/auto-save-closing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          user_id: user.id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`Successfully calculated and saved closing stock for ${formatDateSafely(selectedDate)}.\n\nFormula: Opening Stock + Restocking - Sales - Waste/Spoilage`)
+        setEditingItems({})
+        await fetchReport()
+      } else {
+        alert(`Error: ${result.error || 'Failed to calculate closing stock'}`)
+      }
+    } catch (error) {
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to calculate closing stock'}`)
+    } finally {
+      setCalculating(false)
     }
   }
 
@@ -336,7 +421,9 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
             </h2>
             <p className="text-sm text-gray-500 mt-1">
               {isPastDate
-                ? `Manual entry mode for ${formatDateSafely(selectedDate)}. Enter values and click Save.`
+                ? type === 'opening'
+                  ? `Manual entry mode for ${formatDateSafely(selectedDate)}. Enter values and click Save.`
+                  : `Automatically calculated for ${formatDateSafely(selectedDate)}: Opening Stock + Restocking - Sales - Waste/Spoilage. You can manually override if needed.`
                 : type === 'opening'
                 ? 'Automatically calculated from previous day\'s closing stock. If no closing stock exists, falls back to item\'s current quantity.'
                 : 'Automatically calculated: Opening Stock + Restocking - Sales - Waste/Spoilage'}
@@ -344,7 +431,9 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
             {isPastDate && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
                 <p className="text-sm text-blue-800">
-                  <strong>Past Date Entry:</strong> You can manually enter {type === 'opening' ? 'opening' : 'closing'} stock values for this date. 
+                  <strong>Past Date Entry:</strong> {type === 'opening' 
+                    ? 'You can manually enter opening stock values for this date.' 
+                    : 'Closing stock is automatically calculated from Opening Stock + Restocking - Sales - Waste/Spoilage. You can manually override if needed.'} 
                   {type === 'opening' && ' You can also enter cost price and selling price for historical accuracy, as prices change per day.'}
                   {type === 'closing' && ' The system will calculate based on opening stock + restocking - sales - waste/spoilage, but you can override with manual values.'}
                 </p>
@@ -544,15 +633,27 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
             </table>
           </div>
           {isPastDate && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
               {userRole === 'admin' ? (
-                <button
-                  onClick={handleManualSave}
-                  disabled={saving || Object.keys(editingItems).length === 0}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? 'Saving...' : `Save ${type === 'opening' ? 'Opening' : 'Closing'} Stock`}
-                </button>
+                <>
+                  {type === 'closing' && (
+                    <button
+                      onClick={handleAutoCalculateClosing}
+                      disabled={saving || calculating}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Calculate closing stock from: Opening Stock + Restocking - Sales - Waste/Spoilage"
+                    >
+                      {calculating ? 'Calculating...' : 'Calculate & Save Closing Stock'}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleManualSave}
+                    disabled={saving || calculating || Object.keys(editingItems).length === 0}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ml-auto"
+                  >
+                    {saving ? 'Saving...' : `Save ${type === 'opening' ? 'Opening' : 'Closing'} Stock`}
+                  </button>
+                </>
               ) : (
                 <p className="text-sm text-gray-500 italic">Only administrators can record opening and closing stock.</p>
               )}
