@@ -92,7 +92,7 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
           }
         }
       }
-    } catch (error) {
+    } catch {
     } finally {
       setLoading(false)
     }
@@ -189,7 +189,12 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
 
       const itemsToSave = report.report.map((item) => {
         const editingData = editingItems[item.item_id] || {}
-        const baseData: any = {
+        const baseData: {
+          item_id: string
+          quantity: number
+          cost_price?: number | null
+          selling_price?: number | null
+        } = {
           item_id: item.item_id,
           quantity: editingData.quantity ?? (type === 'opening' ? item.opening_stock : item.closing_stock),
         }
@@ -358,9 +363,11 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
                           </th>
                         </>
                       )}
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Current Quantity
-                      </th>
+                      {!isPastDate && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Current Quantity
+                        </th>
+                      )}
                     </>
                   )}
                   {type === 'closing' && (
@@ -464,9 +471,11 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
                             </td>
                           </>
                         )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.current_quantity} {item.item_unit}
-                        </td>
+                        {!isPastDate && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.current_quantity} {item.item_unit}
+                          </td>
+                        )}
                       </>
                     )}
                     {type === 'closing' && (

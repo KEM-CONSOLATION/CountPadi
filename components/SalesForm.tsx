@@ -1,42 +1,65 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Item, Sale, Profile } from '@/types/database'
 import { format } from 'date-fns'
 
-// Component to display stock availability for a specific date
+// Component to display stock availability and closing stock for a specific date
 function StockAvailabilityDisplay({ 
   itemId, 
   date, 
   sales, 
   editingSale, 
-  item 
+  item,
+  quantityToRecord
 }: { 
   itemId: string
   date: string
   sales: (Sale & { item?: Item })[]
   editingSale: Sale | null
   item: Item
+  quantityToRecord?: number
 }) {
   const [availableStock, setAvailableStock] = useState<number | null>(null)
+  const [closingStock, setClosingStock] = useState<number | null>(null)
   const [stockInfo, setStockInfo] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const salesRef = useRef(sales)
+  const editingSaleRef = useRef(editingSale)
   const today = format(new Date(), 'yyyy-MM-dd')
   const isPastDate = date < today
 
+  // Update refs when props change
   useEffect(() => {
+    salesRef.current = sales
+    editingSaleRef.current = editingSale
+  }, [sales, editingSale])
+
+  useEffect(() => {
+    // Only calculate if we have an item ID and date
+    if (!itemId || !date) {
+      setLoading(false)
+      return
+    }
+
+    let isMounted = true
+
     const calculateAvailability = async () => {
       setLoading(true)
       try {
-        const itemSales = sales.filter(s => s.item_id === itemId && s.date === date)
+        // Get current sales for this item and date
+        const itemSales = salesRef.current.filter(s => s.item_id === itemId && s.date === date)
         const totalSales = itemSales.reduce((sum, s) => {
-          if (editingSale && s.id === editingSale.id) return sum
+          if (editingSaleRef.current && s.id === editingSaleRef.current.id) return sum
           return sum + s.quantity
         }, 0)
 
+        // Add the quantity being recorded (if any) to total sales for closing stock calculation
+        const salesIncludingNew = totalSales + (quantityToRecord || 0)
+
         if (isPastDate) {
-          // For past dates: Opening Stock + Restocking - Sales
+          // For past dates: Opening Stock + Restocking - Sales - Waste/Spoilage
           const { data: openingStock } = await supabase
             .from('opening_stock')
             .select('quantity')
@@ -50,37 +73,83 @@ function StockAvailabilityDisplay({
             .eq('item_id', itemId)
             .eq('date', date)
 
+          const { data: wasteSpoilage } = await supabase
+            .from('waste_spoilage')
+            .select('quantity')
+            .eq('item_id', itemId)
+            .eq('date', date)
+
           const openingQty = openingStock ? parseFloat(openingStock.quantity.toString()) : 0
           const totalRestocking = restocking?.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0) || 0
+          const totalWasteSpoilage = wasteSpoilage?.reduce((sum, ws) => sum + parseFloat(ws.quantity.toString()), 0) || 0
 
+          // Available stock before this sale
           const available = openingQty + totalRestocking - totalSales
-          setAvailableStock(available)
-          setStockInfo(`Opening: ${openingQty}, Restocked: ${totalRestocking}, Sold: ${totalSales}`)
+          // Closing stock after this sale
+          const closing = openingQty + totalRestocking - salesIncludingNew - totalWasteSpoilage
+
+          if (isMounted) {
+            setAvailableStock(available)
+            setClosingStock(closing)
+            setStockInfo(`Opening: ${openingQty}, Restocked: ${totalRestocking}, Sold: ${totalSales}, Waste/Spoilage: ${totalWasteSpoilage}`)
+          }
         } else {
           // For today: Current quantity - Sales
           const available = item.quantity - totalSales
-          setAvailableStock(available)
-          setStockInfo(`Current: ${item.quantity}, Sold today: ${totalSales}`)
+          // Closing stock would be: Current quantity - Sales (including new) - Waste/Spoilage
+          const { data: wasteSpoilage } = await supabase
+            .from('waste_spoilage')
+            .select('quantity')
+            .eq('item_id', itemId)
+            .eq('date', date)
+
+          const totalWasteSpoilage = wasteSpoilage?.reduce((sum, ws) => sum + parseFloat(ws.quantity.toString()), 0) || 0
+          const closing = item.quantity - salesIncludingNew - totalWasteSpoilage
+
+          if (isMounted) {
+            setAvailableStock(available)
+            setClosingStock(closing)
+            setStockInfo(`Current: ${item.quantity}, Sold today: ${totalSales}, Waste/Spoilage: ${totalWasteSpoilage}`)
+          }
         }
       } catch {
-        setAvailableStock(null)
-        setStockInfo('Unable to calculate')
+        if (isMounted) {
+          setAvailableStock(null)
+          setClosingStock(null)
+          setStockInfo('Unable to calculate')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     calculateAvailability()
-  }, [itemId, date, sales, editingSale, item.quantity, isPastDate])
+
+    return () => {
+      isMounted = false
+    }
+  }, [itemId, date, quantityToRecord, isPastDate, item.quantity])
 
   if (loading) {
     return <p className="text-xs text-gray-500">Calculating availability...</p>
   }
 
   return (
-    <p className={`text-xs ${availableStock !== null && availableStock > 0 ? 'text-gray-500' : 'text-red-600'}`}>
-      Available stock: {availableStock !== null && availableStock > 0 ? availableStock : 0} {item.unit} ({stockInfo})
-    </p>
+    <div className="space-y-1">
+      <p className={`text-xs ${availableStock !== null && availableStock > 0 ? 'text-gray-500' : 'text-red-600'}`}>
+        Available stock: {availableStock !== null && availableStock > 0 ? availableStock : 0} {item.unit}
+      </p>
+      {closingStock !== null && (
+        <p className="text-xs text-blue-600 font-medium">
+          Closing stock after this sale: {closingStock > 0 ? closingStock : 0} {item.unit}
+        </p>
+      )}
+      <p className="text-xs text-gray-400">
+        ({stockInfo})
+      </p>
+    </div>
   )
 }
 
@@ -567,6 +636,7 @@ export default function SalesForm() {
                   sales={sales}
                   editingSale={editingSale}
                   item={item}
+                  quantityToRecord={parseFloat(quantity) || 0}
                 />
               </div>
             )
