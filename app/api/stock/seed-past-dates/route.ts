@@ -4,15 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-/**
- * Seeds opening stock records for all past dates up to today
- * This allows the system to start fresh from today without manual entry
- * 
- * Strategy:
- * - For each item, use its current quantity as the opening stock for all past dates
- * - This creates a baseline so the system can work correctly from today forward
- * - Users can later adjust these values if needed
- */
 export async function POST(request: NextRequest) {
   try {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {

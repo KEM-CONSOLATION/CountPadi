@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase/client'
 import { Item, Sale, Profile, OpeningStock, Restocking } from '@/types/database'
 import { format } from 'date-fns'
 
-// Component to display stock availability and closing stock for a specific date
 function StockAvailabilityDisplay({ 
   itemId, 
   date, 
@@ -30,14 +29,12 @@ function StockAvailabilityDisplay({
   const today = format(new Date(), 'yyyy-MM-dd')
   const isPastDate = date < today
 
-  // Update refs when props change
   useEffect(() => {
     salesRef.current = sales
     editingSaleRef.current = editingSale
   }, [sales, editingSale])
 
   useEffect(() => {
-    // Only calculate if we have an item ID and date
     if (!itemId || !date) {
       setLoading(false)
       return
@@ -48,18 +45,15 @@ function StockAvailabilityDisplay({
     const calculateAvailability = async () => {
       setLoading(true)
       try {
-        // Get current sales for this item and date
         const itemSales = salesRef.current.filter(s => s.item_id === itemId && s.date === date)
         const totalSales = itemSales.reduce((sum, s) => {
           if (editingSaleRef.current && s.id === editingSaleRef.current.id) return sum
           return sum + s.quantity
         }, 0)
 
-        // Add the quantity being recorded (if any) to total sales for closing stock calculation
         const salesIncludingNew = totalSales + (quantityToRecord || 0)
 
         if (isPastDate) {
-          // For past dates: Opening Stock + Restocking - Sales - Waste/Spoilage
           const { data: openingStock } = await supabase
             .from('opening_stock')
             .select('quantity')
@@ -94,8 +88,6 @@ function StockAvailabilityDisplay({
             setStockInfo(`Opening: ${openingQty}, Restocked: ${totalRestocking}, Sold: ${totalSales}, Waste/Spoilage: ${totalWasteSpoilage}`)
           }
         } else {
-          // For today: Opening Stock + Restocking - Sales - Waste/Spoilage
-          // Quantities only come from opening/closing stock - not from item.quantity
           const { data: openingStock } = await supabase
             .from('opening_stock')
             .select('quantity')
@@ -194,31 +186,24 @@ export default function SalesForm() {
     fetchItems()
     fetchSales()
     checkUserRole()
-    // Fetch opening stock and restocking for all dates (including today)
     fetchOpeningStock()
     fetchRestocking()
-    // Ensure date is always today for staff, but allow past dates for admins
     if (userRole === 'staff' && date !== today) {
       setDate(today)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, userRole, isPastDate])
 
-  // Calculate price when item or quantity changes
   useEffect(() => {
     if (selectedItem && quantity) {
       let price = 0
       
       if (isPastDate) {
-        // For past dates: calculate consolidated price from opening stock + restocking
         const openingStock = openingStocks.find(os => os.item_id === selectedItem)
         const itemRestockings = restockings.filter(r => r.item_id === selectedItem)
         
-        // Calculate weighted average price from opening stock and restocking
         let totalQuantity = 0
         let totalValue = 0
         
-        // Add opening stock
         if (openingStock) {
           const openingQty = parseFloat(openingStock.quantity.toString())
           const openingPrice = openingStock.selling_price || 0
@@ -228,7 +213,6 @@ export default function SalesForm() {
           }
         }
         
-        // Add restocking
         itemRestockings.forEach(restocking => {
           const restockingQty = parseFloat(restocking.quantity.toString())
           const restockingPrice = restocking.selling_price || restocking.item?.selling_price || 0
@@ -238,23 +222,18 @@ export default function SalesForm() {
           }
         })
         
-        // Calculate weighted average
         if (totalQuantity > 0 && totalValue > 0) {
           price = totalValue / totalQuantity
         } else if (openingStock && openingStock.selling_price) {
-          // Fallback to opening stock price
           price = openingStock.selling_price
         } else if (itemRestockings.length > 0) {
-          // Fallback to latest restocking price or item price
           const latestRestocking = itemRestockings[itemRestockings.length - 1]
           price = latestRestocking.selling_price || latestRestocking.item?.selling_price || 0
         } else {
-          // Final fallback to item's current selling price
       const selectedItemData = items.find(item => item.id === selectedItem)
           price = selectedItemData?.selling_price || 0
         }
       } else {
-        // For today: use item's current selling price
         const selectedItemData = items.find(item => item.id === selectedItem)
         price = selectedItemData?.selling_price || 0
       }
@@ -312,24 +291,18 @@ export default function SalesForm() {
 
   const fetchOpeningStock = async () => {
     try {
-      // Ensure date is in YYYY-MM-DD format
       let dateStr = date
       
-      // Handle different date formats
       if (date.includes('T')) {
-        dateStr = date.split('T')[0] // Remove time if present
+        dateStr = date.split('T')[0]
       } else if (date.includes('/')) {
-        // Handle DD/MM/YYYY or MM/DD/YYYY format
         const parts = date.split('/')
         if (parts.length === 3) {
-          // Assume DD/MM/YYYY format (common in some locales)
           dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
         }
       }
       
-      // Final validation: ensure dateStr is in YYYY-MM-DD format
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        console.error(`Invalid date format: ${dateStr} (original: ${date})`)
         setMessage({ 
           type: 'error', 
           text: `Invalid date format: ${date}. Please select a valid date.` 
@@ -338,72 +311,38 @@ export default function SalesForm() {
         return
       }
       
-      console.log(`Fetching opening stock for date: ${dateStr} (original: ${date})`)
-      
-      // Query opening stock for the specific date
-      // Note: Due to UNIQUE constraint on (item_id, date), there should only be one record per item per date
       const { data, error } = await supabase
         .from('opening_stock')
         .select(`
           *,
           item:items(*)
         `)
-        .eq('date', dateStr) // This should match exactly one record per item due to UNIQUE constraint
+        .eq('date', dateStr)
       .order('created_at', { ascending: false })
 
     if (error) {
-        const errorDetails = {
-          message: error.message || 'Unknown error',
-          details: error.details || 'No details',
-          hint: error.hint || 'No hint',
-          code: error.code || 'No code',
-          dateStr,
-          originalDate: date
-        }
-        console.error('Error fetching opening stock:', errorDetails)
-        
-        // Show user-friendly error message
         setMessage({ 
           type: 'error', 
-          text: `Error fetching opening stock: ${errorDetails.message}. Please check the console for details.` 
+          text: `Error fetching opening stock: ${error.message}` 
         })
         setOpeningStocks([])
         return
       }
 
-      console.log(`Opening stock query result for ${dateStr}:`, {
-        dataLength: data?.length || 0,
-        data: data?.map(os => ({ 
-          item_id: os.item_id, 
-          item_name: os.item?.name, 
-          quantity: os.quantity, 
-          date: os.date 
-        }))
-      })
-
       if (data && data.length > 0) {
-        // Filter out any duplicates (shouldn't happen due to UNIQUE constraint, but just in case)
-        // IMPORTANT: If duplicates exist, we want the one that matches the date exactly and has the correct quantity
         const uniqueOpeningStocks = data.reduce((acc, current) => {
           const existing = acc.find((item: typeof data[0]) => item.item_id === current.item_id)
           if (!existing) {
             acc.push(current)
     } else {
-            // If duplicate exists, prefer the one that:
-            // 1. Matches the date exactly
-            // 2. Has the most recent created_at (most likely to be correct)
             const currentDateMatch = current.date === dateStr
             const existingDateMatch = existing.date === dateStr
             
             if (currentDateMatch && !existingDateMatch) {
-              // Current matches date, existing doesn't - use current
               const index = acc.indexOf(existing)
               acc[index] = current
             } else if (!currentDateMatch && existingDateMatch) {
-              // Existing matches date, current doesn't - keep existing
-              // Do nothing
             } else {
-              // Both match or both don't match - use most recent
               if (new Date(current.created_at) > new Date(existing.created_at)) {
                 const index = acc.indexOf(existing)
                 acc[index] = current
@@ -413,40 +352,12 @@ export default function SalesForm() {
           return acc
         }, [] as typeof data)
         
-        // Debug: Log opening stock for water specifically with full details
-        const waterStock = uniqueOpeningStocks.find((os: typeof data[0]) => os.item?.name?.toLowerCase() === 'water')
-        if (waterStock) {
-          console.log(`Water opening stock for ${dateStr}:`, {
-            id: waterStock.id,
-            quantity: waterStock.quantity,
-            date: waterStock.date,
-            dateMatch: waterStock.date === dateStr,
-            created_at: waterStock.created_at,
-            itemQuantity: waterStock.item?.quantity,
-            notes: waterStock.notes
-          })
-        }
-        
-        // Also log all water records found (in case of duplicates)
-        const allWaterRecords = data.filter((os: typeof data[0]) => os.item?.name?.toLowerCase() === 'water')
-        if (allWaterRecords.length > 1) {
-          console.warn(`Multiple opening stock records found for water on ${dateStr}:`, allWaterRecords.map(os => ({
-            id: os.id,
-            quantity: os.quantity,
-            date: os.date,
-            created_at: os.created_at
-          })))
-        }
-        
         setOpeningStocks(uniqueOpeningStocks as (OpeningStock & { item?: Item })[])
-        // Clear any previous error messages if we successfully fetched data
         if (message?.type === 'error' && message.text.includes('opening stock')) {
           setMessage(null)
         }
       } else {
-        console.log(`No opening stock found for date: ${dateStr}. This might be normal if opening stock hasn't been recorded for this date yet.`)
         setOpeningStocks([])
-        // Only show error message if this is a past date (opening stock should exist for past dates)
         if (isPastDate) {
           setMessage({ 
             type: 'error', 
@@ -455,7 +366,6 @@ export default function SalesForm() {
         }
       }
     } catch (error) {
-      console.error('Error in fetchOpeningStock:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       setMessage({ 
         type: 'error', 
@@ -467,27 +377,20 @@ export default function SalesForm() {
 
   const fetchRestocking = async () => {
     try {
-      // Ensure date is in YYYY-MM-DD format
       let dateStr = date
       if (date.includes('T')) {
-        dateStr = date.split('T')[0] // Remove time if present
+        dateStr = date.split('T')[0]
       } else if (date.includes('/')) {
-        // Handle DD/MM/YYYY or MM/DD/YYYY format
         const parts = date.split('/')
         if (parts.length === 3) {
-          // Assume DD/MM/YYYY format (common in some locales)
           dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
         }
       }
       
-      // Final validation: ensure dateStr is in YYYY-MM-DD format
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        console.error(`Invalid date format for restocking fetch: ${dateStr} (original: ${date})`)
         setRestockings([])
         return
       }
-      
-      console.log(`Fetching restocking for date: ${dateStr} (original: ${date})`)
       
       const { data, error } = await supabase
         .from('restocking')
@@ -495,27 +398,15 @@ export default function SalesForm() {
           *,
           item:items(*)
         `)
-        .eq('date', dateStr) // Use normalized date
+        .eq('date', dateStr)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
-        console.log(`Restocking query result for ${dateStr}:`, {
-          dataLength: data?.length || 0,
-          data: data?.map(r => ({ 
-            item_id: r.item_id, 
-            item_name: r.item?.name, 
-            quantity: r.quantity, 
-            date: r.date 
-          }))
-        })
         setRestockings(data as (Restocking & { item?: Item })[])
       } else if (error) {
-        console.error('Error fetching restocking:', error)
         setRestockings([])
       }
     } catch (error) {
-      console.error('Error in fetchRestocking:', error)
-      // Silently fail - restocking might not exist for all dates
       setRestockings([])
     }
   }
@@ -533,7 +424,6 @@ export default function SalesForm() {
 
       if (!user) throw new Error('Not authenticated')
 
-      // Restrict sales to today only for staff, allow past dates for admins
       const today = format(new Date(), 'yyyy-MM-dd')
       if (userRole !== 'admin' && date !== today) {
         setMessage({ 
@@ -545,7 +435,6 @@ export default function SalesForm() {
         return
       }
       
-      // Prevent future dates for everyone
       if (date > today) {
         setMessage({ 
           type: 'error', 
@@ -586,13 +475,10 @@ export default function SalesForm() {
         const today = format(new Date(), 'yyyy-MM-dd')
         const isPastDate = date < today
         
-        // Calculate available stock based on the selected date
         let availableStock = 0
         let stockInfo = ''
         
         if (isPastDate) {
-          // For past dates: Opening Stock + Restocking - Sales already recorded
-          // Normalize date to YYYY-MM-DD format
           const normalizedDate = date.split('T')[0]
           if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
             setMessage({ 
@@ -607,20 +493,20 @@ export default function SalesForm() {
             .from('opening_stock')
             .select('quantity')
             .eq('item_id', selectedItem)
-            .eq('date', normalizedDate) // Use normalized date
+            .eq('date', normalizedDate)
             .single()
 
           const { data: restocking } = await supabase
             .from('restocking')
             .select('quantity')
             .eq('item_id', selectedItem)
-            .eq('date', normalizedDate) // Use normalized date
+            .eq('date', normalizedDate)
 
           const { data: existingSales } = await supabase
             .from('sales')
             .select('id, quantity')
             .eq('item_id', selectedItem)
-            .eq('date', normalizedDate) // Use normalized date
+            .eq('date', normalizedDate)
 
           const openingQty = openingStock ? parseFloat(openingStock.quantity.toString()) : 0
           const totalRestocking = restocking?.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0) || 0
@@ -632,8 +518,6 @@ export default function SalesForm() {
           availableStock = openingQty + totalRestocking - totalSalesSoFar
           stockInfo = `Opening: ${openingQty}, Restocked: ${totalRestocking}, Sold: ${totalSalesSoFar}`
         } else {
-          // For today: Opening Stock + Restocking - Sales already made today
-          // Quantities only come from opening/closing stock - not from item.quantity
           const normalizedDate = date.split('T')[0]
           
           const { data: openingStock } = await supabase
@@ -753,7 +637,6 @@ export default function SalesForm() {
 
   const handleEdit = (sale: Sale) => {
     const today = format(new Date(), 'yyyy-MM-dd')
-    // Only allow editing if it's today's sale
     if (sale.date !== today) {
       setMessage({ type: 'error', text: 'Can only edit sales records for today. Past dates cannot be modified.' })
       return
@@ -764,7 +647,7 @@ export default function SalesForm() {
     setPricePerUnit(sale.price_per_unit.toString())
     setTotalPrice(sale.total_price.toString())
     setPaymentMode(sale.payment_mode)
-    setDate(today) // Always use today's date
+    setDate(today)
     setDescription(sale.description || '')
   }
 
@@ -779,7 +662,6 @@ export default function SalesForm() {
     setDate(format(new Date(), 'yyyy-MM-dd'))
   }
 
-  // Calculate total price when price per unit or quantity changes manually
   const handlePricePerUnitChange = (value: string) => {
     setPricePerUnit(value)
     const qty = parseFloat(quantity) || 0
@@ -866,14 +748,12 @@ export default function SalesForm() {
               const selectedDate = e.target.value
               const today = format(new Date(), 'yyyy-MM-dd')
               
-              // Staff can only use today's date
               if (userRole !== 'admin' && selectedDate !== today) {
                 setMessage({ type: 'error', text: 'Sales can only be recorded for today\'s date.' })
                 setDate(today)
                 return
               }
               
-              // Prevent future dates for everyone
               if (selectedDate > today) {
                 setMessage({ type: 'error', text: 'Cannot record sales for future dates.' })
                 setDate(today)
@@ -881,7 +761,7 @@ export default function SalesForm() {
               }
               
               setDate(selectedDate)
-              setMessage(null) // Clear any previous messages
+              setMessage(null)
             }}
             max={format(new Date(), 'yyyy-MM-dd')}
             required
@@ -901,7 +781,7 @@ export default function SalesForm() {
         <div>
           <label htmlFor="item" className="block text-sm font-medium text-gray-700 mb-1">
             Item Used
-            {isPastDate && <span className="text-xs text-gray-500 ml-1">(From opening stock of this date, derived from previous day&apos;s closing stock)</span>}
+            {isPastDate && <span className="text-xs text-gray-500 ml-1">(From opening stock of this date)</span>}
           </label>
           <select
             id="item"
@@ -912,42 +792,31 @@ export default function SalesForm() {
           >
             <option value="">Select an item</option>
             {isPastDate ? (
-              // For past dates: show items ONLY from opening stock for this specific date
               openingStocks.length > 0 ? (
                 openingStocks.map((openingStock) => {
                   const item = openingStock.item
                   if (!item) return null
                   
-                  // Normalize date to ensure correct filtering
                   const normalizedDate = date.split('T')[0]
                   
-                  // Get restocking for this item on this specific date only
                   const itemRestocking = restockings.filter(r => {
                     const restockDate = r.date.split('T')[0]
                     return r.item_id === item.id && restockDate === normalizedDate
                   })
                   const totalRestocking = itemRestocking.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0)
                   
-                  // Get sales already recorded for this item on this specific date only
                   const itemSales = sales.filter(s => {
                     const saleDate = s.date.split('T')[0]
                     return s.item_id === item.id && saleDate === normalizedDate
                   })
                   const totalSales = itemSales.reduce((sum, s) => {
-                    // Exclude the sale being edited from total
                     if (editingSale && s.id === editingSale.id) return sum
                     return sum + s.quantity
                   }, 0)
                   
-                  // Available = Opening Stock + Restocking - Sales already made
-                  // CRITICAL: Use opening stock quantity from the database for this specific date
                   const openingQty = parseFloat(openingStock.quantity.toString())
-                  
-                  // Note: item.quantity is not used - quantities only come from opening/closing stock
-                  
                   const available = Math.max(0, openingQty + totalRestocking - totalSales)
                   
-                  // Format display to show opening stock clearly (from previous day's closing stock)
                   const displayText = totalRestocking > 0
                     ? `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty}, Restocked: ${totalRestocking})`
                     : `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty})`
@@ -964,40 +833,32 @@ export default function SalesForm() {
                 </option>
               )
             ) : (
-              // For today: show items with opening stock + restocking breakdown (same format as past dates)
               items.map((item) => {
-                // Normalize date to ensure correct filtering
                 const normalizedDate = date.split('T')[0]
                 
-                // Get opening stock for this item on today's date
                 const itemOpeningStock = openingStocks.find(os => {
                   const osDate = os.date.split('T')[0]
                   return os.item_id === item.id && osDate === normalizedDate
                 })
                 const openingQty = itemOpeningStock ? parseFloat(itemOpeningStock.quantity.toString()) : 0
                 
-                // Get restocking for this item on today's date
                 const itemRestocking = restockings.filter(r => {
                   const restockDate = r.date.split('T')[0]
                   return r.item_id === item.id && restockDate === normalizedDate
                 })
                 const totalRestocking = itemRestocking.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0)
                 
-                // Get sales already recorded for this item today
                 const itemSales = sales.filter(s => {
                   const saleDate = s.date.split('T')[0]
                   return s.item_id === item.id && saleDate === normalizedDate
                 })
                 const totalSales = itemSales.reduce((sum, s) => {
-                  // Exclude the sale being edited from total
                   if (editingSale && s.id === editingSale.id) return sum
                   return sum + s.quantity
                 }, 0)
                 
-                // Available = Opening Stock + Restocking - Sales already made
                 const available = Math.max(0, openingQty + totalRestocking - totalSales)
                 
-                // Format display to show opening stock and restocking (same format as past dates)
                 const displayText = totalRestocking > 0
                   ? `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty}, Restocked: ${totalRestocking})`
                   : `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty})`

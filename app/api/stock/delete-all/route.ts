@@ -4,10 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-/**
- * Deletes all stock-related data (opening stock, closing stock, sales, restocking, waste/spoilage)
- * This allows starting fresh with new data entry
- */
 export async function POST() {
   try {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -17,16 +13,13 @@ export async function POST() {
       },
     })
 
-    // Delete all stock-related data
     const deletions = await Promise.all([
-      supabaseAdmin.from('waste_spoilage').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all
-      supabaseAdmin.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all
-      supabaseAdmin.from('restocking').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all
-      supabaseAdmin.from('closing_stock').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all
-      supabaseAdmin.from('opening_stock').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all
+      supabaseAdmin.from('waste_spoilage').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabaseAdmin.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabaseAdmin.from('restocking').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabaseAdmin.from('closing_stock').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabaseAdmin.from('opening_stock').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     ])
-
-    // Check for errors
     const errors = deletions.filter((result) => result.error)
     if (errors.length > 0) {
       const errorMessages = errors.map((e) => e.error?.message).filter(Boolean)
@@ -36,7 +29,6 @@ export async function POST() {
       )
     }
 
-    // Also reset all item quantities to zero
     const { data: items } = await supabaseAdmin.from('items').select('id')
     if (items && items.length > 0) {
       const { error: updateError } = await supabaseAdmin
@@ -45,7 +37,6 @@ export async function POST() {
 
       if (updateError) {
         console.error('Failed to reset item quantities:', updateError)
-        // Don't fail the whole operation if quantity reset fails
       }
     }
 

@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-/**
- * Resets all item quantities to zero
- * This ensures the system only uses opening/closing stock for quantities
- */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -17,7 +13,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Get all items
     const { data: items, error: itemsError } = await supabaseAdmin
       .from('items')
       .select('id, name, quantity')
@@ -31,7 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No items found' }, { status: 400 })
     }
 
-    // Reset all quantities to zero
     const { error: updateError } = await supabaseAdmin
       .from('items')
       .update({ quantity: 0 })

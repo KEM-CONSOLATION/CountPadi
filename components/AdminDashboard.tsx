@@ -9,7 +9,6 @@ import UserManagement from './UserManagement'
 import MenuManagement from './MenuManagement'
 import RecipeManagement from './RecipeManagement'
 
-// Component to reset all item quantities to zero
 function ResetQuantitiesSection() {
   const [resetting, setResetting] = useState(false)
   const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -82,7 +81,6 @@ function ResetQuantitiesSection() {
   )
 }
 
-// Component to delete all stock data
 function DeleteAllStockDataSection() {
   const [deleting, setDeleting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -165,7 +163,6 @@ function DeleteAllStockDataSection() {
   )
 }
 
-// Helper function to safely format date
 const formatDateSafely = (dateString: string): string => {
   if (!dateString || !dateString.trim()) return 'N/A'
   try {
