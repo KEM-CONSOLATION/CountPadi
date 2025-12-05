@@ -121,8 +121,12 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
           // For past dates opening stock: Ensure it matches previous day's closing stock
           // This maintains consistency: closing stock of one day = opening stock of next day
           syncingRef.current = true // Set flag to prevent recursive calls
-          await ensureOpeningStockMatchesPreviousClosing(selectedDate)
+          const result = await ensureOpeningStockMatchesPreviousClosing(selectedDate)
           syncingRef.current = false // Reset flag after sync
+          // Only refresh if update was successful and we're not in a manual sync
+          if (result.success && result.updated && result.updated > 0) {
+            // Don't call fetchReport here to avoid infinite loop - the data is already updated
+          }
         } else if (isPastDate && type === 'closing') {
           // For past dates closing stock: Also ensure opening stock for next day matches this closing stock
           // This maintains the chain: this closing stock → next day's opening stock
@@ -193,10 +197,10 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
     }
   }
 
-  const ensureOpeningStockMatchesPreviousClosing = async (date: string) => {
+  const ensureOpeningStockMatchesPreviousClosing = async (date: string): Promise<{ success: boolean; updated?: number; error?: any }> => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) return { success: false, error: 'User not found' }
 
       // Calculate previous date
       const dateObj = new Date(date + 'T00:00:00')
@@ -212,7 +216,7 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
 
       if (!prevClosingStock || prevClosingStock.length === 0) {
         // No previous closing stock, nothing to sync
-        return
+        return { success: true, updated: 0 }
       }
 
       // Get current opening stock for this date
@@ -233,7 +237,7 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
         .select('*')
         .order('name')
 
-      if (!items) return
+      if (!items) return { success: false, error: 'Items not found' }
 
       // Update opening stock to match previous day's closing stock
       const openingStockToUpsert = items
@@ -286,16 +290,75 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
             })
 
           if (!upsertError) {
-            // Only refresh if we're not already in a sync operation
-            // This prevents infinite loops
-            if (!syncingRef.current) {
-              await fetchReport()
-            }
+            return { success: true, updated: openingStockToUpsert.length }
           }
         }
       }
+      return { success: true, updated: 0 }
     } catch (error) {
       console.error('Failed to ensure opening stock matches previous closing:', error)
+      return { success: false, error }
+    }
+  }
+
+  const handleRecalculateOpeningStock = async () => {
+    if (type !== 'opening' || !isPastDate) return
+
+    if (!confirm('This will:\n1. Recalculate the previous day\'s closing stock (Opening + Restocking - Sales - Waste/Spoilage)\n2. Use that calculated closing stock as this day\'s opening stock\n\nContinue?')) {
+      return
+    }
+
+    setCalculating(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('You must be logged in to recalculate opening stock.')
+        return
+      }
+
+      // Calculate previous date
+      const dateObj = new Date(selectedDate + 'T00:00:00')
+      const prevDate = new Date(dateObj)
+      prevDate.setDate(prevDate.getDate() - 1)
+      const prevDateStr = prevDate.toISOString().split('T')[0]
+
+      // Step 1: First, recalculate the previous day's closing stock
+      // This ensures we have the correct closing stock based on all transactions
+      const closingStockResponse = await fetch('/api/stock/auto-save-closing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: prevDateStr,
+          user_id: user.id,
+        }),
+      })
+
+      const closingStockResult = await closingStockResponse.json()
+      
+      if (!closingStockResult.success) {
+        alert(`Failed to recalculate previous day's closing stock. Please ensure all transactions for ${prevDateStr} are recorded.`)
+        return
+      }
+
+      // Step 2: Now use the recalculated closing stock as this day's opening stock
+      const result = await ensureOpeningStockMatchesPreviousClosing(selectedDate)
+      
+      if (result.success) {
+        if (result.updated > 0) {
+          alert(`Successfully recalculated!\n\nPrevious day (${prevDateStr}) closing stock recalculated.\n${result.updated} item(s) updated to match previous day's closing stock.`)
+          // Refresh the report to show updated values
+          await fetchReport()
+        } else {
+          alert('Opening stock already matches previous day\'s closing stock. No changes needed.')
+        }
+      } else {
+        alert('Failed to update opening stock. Please try again.')
+      }
+    } catch (error) {
+      alert('An error occurred while recalculating opening stock.')
+      console.error('Recalculate opening stock error:', error)
+    } finally {
+      setCalculating(false)
     }
   }
 
@@ -789,13 +852,23 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
                       {calculating ? 'Calculating...' : 'Calculate & Save Closing Stock'}
                     </button>
                   ) : (
-                    <button
-                      onClick={handleManualSave}
-                      disabled={saving || calculating || Object.keys(editingItems).length === 0}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ml-auto"
-                    >
-                      {saving ? 'Saving...' : 'Save Opening Stock'}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleRecalculateOpeningStock}
+                        disabled={saving || calculating}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Recalculate opening stock from previous day's closing stock"
+                      >
+                        {calculating ? 'Recalculating...' : 'Recalculate from Previous Day\'s Closing Stock'}
+                      </button>
+                      <button
+                        onClick={handleManualSave}
+                        disabled={saving || calculating || Object.keys(editingItems).length === 0}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ml-auto"
+                      >
+                        {saving ? 'Saving...' : 'Save Opening Stock'}
+                      </button>
+                    </>
                   )}
                 </>
               ) : (
