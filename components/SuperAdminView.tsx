@@ -52,16 +52,24 @@ export default function SuperAdminView() {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select(`
-          *,
-          created_by_profile:profiles!organizations_created_by_fkey(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
       const orgsWithData = await Promise.all(
         (data || []).map(async (org) => {
+          // Fetch created_by profile separately
+          const { data: createdByProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', org.created_by)
+            .single()
+
+          const orgWithProfile = {
+            ...org,
+            created_by_profile: createdByProfile || null,
+          }
           const { count: userCount } = await supabase
             .from('profiles')
             .select('*', { count: 'exact', head: true })
@@ -96,7 +104,7 @@ export default function SuperAdminView() {
           const staff = allUsers?.filter(u => u.role === 'staff') || []
 
           return {
-            ...org,
+            ...orgWithProfile,
             user_count: userCount || 0,
             metrics: {
               total_items: itemCount || 0,
