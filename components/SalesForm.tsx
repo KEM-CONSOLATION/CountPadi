@@ -381,8 +381,18 @@ export default function SalesForm() {
 
       if (!user) throw new Error('Not authenticated')
 
+      // Superadmins cannot perform sales operations
+      if (userRole === 'superadmin') {
+        setMessage({ 
+          type: 'error', 
+          text: 'Superadmins cannot record sales. Please contact the organization admin.' 
+        })
+        setLoading(false)
+        return
+      }
+
       const today = format(new Date(), 'yyyy-MM-dd')
-      if (userRole !== 'admin' && userRole !== 'superadmin' && date !== today) {
+      if (userRole !== 'admin' && date !== today) {
         setMessage({ 
           type: 'error', 
           text: 'Sales can only be recorded for today\'s date. Please use today\'s date.' 

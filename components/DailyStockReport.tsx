@@ -575,8 +575,14 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
   const handleManualSave = async () => {
     if (!report) return
 
+    // Superadmins cannot save stock
+    if (userRole === 'superadmin') {
+      alert('Superadmins cannot record opening and closing stock. Please contact the organization admin.')
+      return
+    }
+
     // Only admins can save stock
-    if (userRole !== 'admin' && userRole !== 'superadmin') {
+    if (userRole !== 'admin') {
       alert('Only administrators can record opening and closing stock.')
       return
     }

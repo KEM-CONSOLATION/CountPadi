@@ -62,6 +62,31 @@ export default function UserManagement() {
     }
   }
 
+  const deleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete ${userEmail}? This action cannot be undone.`)) {
+      return
+    }
+
+    setError(null)
+    setSuccess(null)
+    try {
+      const response = await fetch(`/api/users/delete?user_id=${userId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to delete user')
+
+      setSuccess('User deleted successfully')
+      fetchUsers()
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete user')
+    }
+  }
+
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -290,23 +315,33 @@ export default function UserManagement() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {user.role === 'superadmin' ? (
-                        <span className="text-xs text-red-600 font-semibold">Superadmin</span>
-                      ) : user.role === 'admin' ? (
-                        <button
-                          onClick={() => updateUserRole(user.id, 'staff')}
-                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
-                        >
-                          Set as Staff
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => updateUserRole(user.id, 'admin')}
-                          className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
-                        >
-                          Set as Admin
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {user.role === 'superadmin' ? (
+                          <span className="text-xs text-red-600 font-semibold">Superadmin</span>
+                        ) : user.role === 'admin' ? (
+                          <button
+                            onClick={() => updateUserRole(user.id, 'staff')}
+                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer text-xs"
+                          >
+                            Set as Staff
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => updateUserRole(user.id, 'admin')}
+                            className="text-indigo-600 hover:text-indigo-900 cursor-pointer text-xs"
+                          >
+                            Set as Admin
+                          </button>
+                        )}
+                        {user.role !== 'superadmin' && (
+                          <button
+                            onClick={() => deleteUser(user.id, user.email)}
+                            className="text-red-600 hover:text-red-900 cursor-pointer text-xs ml-2"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

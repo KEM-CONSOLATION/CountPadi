@@ -23,18 +23,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
-    if (!profile.organization_id) {
+    // Superadmins can create users for any organization, regular admins need their own org
+    if (profile.role !== 'superadmin' && !profile.organization_id) {
       return NextResponse.json({ error: 'You must belong to an organization to create users' }, { status: 400 })
     }
 
     const body = await request.json()
-    const { email, password, fullName, role } = body
+    const { email, password, fullName, role, organization_id } = body
 
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       )
+    }
+
+    // Determine organization_id: superadmin can specify, regular admin uses their own
+    let targetOrganizationId: string | null = null
+    if (profile.role === 'superadmin') {
+      if (!organization_id) {
+        return NextResponse.json(
+          { error: 'organization_id is required when creating users as superadmin' },
+          { status: 400 }
+        )
+      }
+      targetOrganizationId = organization_id
+    } else {
+      targetOrganizationId = profile.organization_id
     }
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -107,7 +122,7 @@ export async function POST(request: NextRequest) {
               email: newUser.user.email || email,
               full_name: fullName || null,
               role: (role as 'admin' | 'staff') || 'staff',
-              organization_id: profile.organization_id,
+              organization_id: targetOrganizationId,
             })
 
           if (!insertError) {

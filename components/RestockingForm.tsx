@@ -143,9 +143,16 @@ export default function RestockingForm() {
 
       if (!user) throw new Error('Not authenticated')
 
+      // Superadmins cannot perform restocking operations
+      if (userRole === 'superadmin') {
+        setMessage({ type: 'error', text: 'Superadmins cannot perform restocking operations. Please contact the organization admin.' })
+        setLoading(false)
+        return
+      }
+
       // Restrict restocking to today only for staff, allow past dates for admins
       const today = format(new Date(), 'yyyy-MM-dd')
-      if (userRole !== 'admin' && userRole !== 'superadmin' && date !== today) {
+      if (userRole !== 'admin' && date !== today) {
         setMessage({ type: 'error', text: 'Restocking can only be recorded for today\'s date. Please use today\'s date.' })
         setDate(today) // Reset to today
         setLoading(false)
@@ -319,8 +326,14 @@ export default function RestockingForm() {
 
   const handleEdit = (restocking: Restocking) => {
     const today = format(new Date(), 'yyyy-MM-dd')
+    // Superadmins cannot edit restocking
+    if (userRole === 'superadmin') {
+      setMessage({ type: 'error', text: 'Superadmins cannot edit restocking records.' })
+      return
+    }
+
     // Only allow editing today's restocking for staff, but allow past dates for admins
-    if (userRole !== 'admin' && userRole !== 'superadmin' && restocking.date !== today) {
+    if (userRole !== 'admin' && restocking.date !== today) {
       setMessage({ type: 'error', text: 'Can only edit restocking records for today. Past dates cannot be modified.' })
       return
     }
