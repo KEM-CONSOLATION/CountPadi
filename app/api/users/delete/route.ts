@@ -87,11 +87,26 @@ export async function DELETE(request: NextRequest) {
       }
     )
 
-    // Delete user (this will cascade delete profile due to foreign key)
+    // Delete user from auth.users (this will cascade delete profile)
+    // Note: Foreign keys on recorded_by columns should be set to ON DELETE SET NULL
+    // Run supabase/fix_profile_delete_cascade.sql if deletion fails due to foreign key constraints
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 400 })
+      console.error('Error deleting user from auth:', deleteError)
+      
+      // Provide more specific error messages
+      let errorMessage = deleteError.message || 'Database error deleting user'
+      
+      if (deleteError.message?.includes('foreign key') || 
+          deleteError.message?.includes('constraint') ||
+          deleteError.message?.includes('violates foreign key')) {
+        errorMessage = 'Cannot delete user: User has associated records. Please run the database migration to fix this.'
+      }
+      
+      return NextResponse.json({ 
+        error: errorMessage
+      }, { status: 400 })
     }
 
     return NextResponse.json({
@@ -99,7 +114,8 @@ export async function DELETE(request: NextRequest) {
       message: 'User deleted successfully',
     })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete user'
+    console.error('Error in delete user route:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Database error deleting user'
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }
