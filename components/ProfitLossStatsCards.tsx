@@ -13,11 +13,12 @@ export default function ProfitLossStatsCards() {
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [netProfit, setNetProfit] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
     fetchStats()
-  }, [selectedDate])
+  }, [startDate, endDate])
 
   const fetchStats = async () => {
     setLoading(true)
@@ -35,11 +36,25 @@ export default function ProfitLossStatsCards() {
         organizationId = profile?.organization_id || null
       }
 
-      // Fetch sales for selected date
+      // Validate date range
+      if (startDate > endDate) {
+        setEndDate(startDate)
+        return
+      }
+
+      const today = format(new Date(), 'yyyy-MM-dd')
+      if (startDate > today || endDate > today) {
+        setStartDate(today)
+        setEndDate(today)
+        return
+      }
+
+      // Fetch sales for date range
       let salesQuery = supabase
         .from('sales')
         .select('*, item:items(*)')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
@@ -83,11 +98,12 @@ export default function ProfitLossStatsCards() {
       setTotalCost(costTotal)
       setTotalProfit(profitTotal)
 
-      // Fetch expenses
+      // Fetch expenses for date range
       let expensesQuery = supabase
         .from('expenses')
         .select('amount')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
@@ -119,35 +135,67 @@ export default function ProfitLossStatsCards() {
     )
   }
 
-  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const isToday = startDate === today && endDate === today
+  const getDateRangeLabel = () => {
+    if (startDate === endDate) {
+      return format(new Date(startDate), 'MMM dd, yyyy')
+    }
+    return `${format(new Date(startDate), 'MMM dd')} - ${format(new Date(endDate), 'MMM dd, yyyy')}`
+  }
   const sectionTitle = isToday 
     ? "Today's Profit & Loss" 
-    : `Profit & Loss - ${format(new Date(selectedDate), 'MMM dd, yyyy')}`
+    : `Profit & Loss - ${getDateRangeLabel()}`
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">{sectionTitle}</h2>
         <div className="flex items-center gap-2">
-          <label htmlFor="profit-date" className="text-sm text-gray-600 whitespace-nowrap">
-            Filter by Date:
+          <label htmlFor="profit-start-date" className="text-sm text-gray-600 whitespace-nowrap">
+            Date Range:
           </label>
           <input
             type="date"
-            id="profit-date"
-            value={selectedDate}
+            id="profit-start-date"
+            value={startDate}
             max={format(new Date(), 'yyyy-MM-dd')}
             onChange={(e) => {
-              const selected = e.target.value
+              const newStartDate = e.target.value
               const today = format(new Date(), 'yyyy-MM-dd')
-              if (selected > today) {
-                alert('Cannot select future dates. Please select today or a past date.')
-                setSelectedDate(today)
+              if (newStartDate > today) {
+                alert('Cannot select future dates.')
+                setStartDate(today)
+              } else if (newStartDate > endDate) {
+                setEndDate(newStartDate)
+                setStartDate(newStartDate)
               } else {
-                setSelectedDate(selected)
+                setStartDate(newStartDate)
               }
             }}
-            className="px-3 py-1.5  text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="px-3 py-1.5 text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <span className="text-gray-500">to</span>
+          <input
+            type="date"
+            id="profit-end-date"
+            value={endDate}
+            max={format(new Date(), 'yyyy-MM-dd')}
+            min={startDate}
+            onChange={(e) => {
+              const newEndDate = e.target.value
+              const today = format(new Date(), 'yyyy-MM-dd')
+              if (newEndDate > today) {
+                alert('Cannot select future dates.')
+                setEndDate(today)
+              } else if (newEndDate < startDate) {
+                alert('End date cannot be before start date.')
+                setEndDate(startDate)
+              } else {
+                setEndDate(newEndDate)
+              }
+            }}
+            className="px-3 py-1.5 text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
       </div>

@@ -7,7 +7,8 @@ import { format } from 'date-fns'
 import { exportToExcel, exportToPDF, exportToCSV, formatCurrency, formatDate } from '@/lib/export-utils'
 
 export default function ProfitLossView() {
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [loading, setLoading] = useState(false)
   const [totalSales, setTotalSales] = useState(0)
   const [totalCost, setTotalCost] = useState(0)
@@ -28,7 +29,7 @@ export default function ProfitLossView() {
   useEffect(() => {
     calculateProfitLoss()
     fetchOrganization()
-  }, [selectedDate])
+  }, [startDate, endDate])
 
   const fetchOrganization = async () => {
     try {
@@ -69,11 +70,25 @@ export default function ProfitLossView() {
         organizationId = profile?.organization_id || null
       }
 
-      // Fetch sales for the date
+      // Validate date range
+      if (startDate > endDate) {
+        setEndDate(startDate)
+        return
+      }
+
+      const today = format(new Date(), 'yyyy-MM-dd')
+      if (startDate > today || endDate > today) {
+        setStartDate(today)
+        setEndDate(today)
+        return
+      }
+
+      // Fetch sales for date range
       let salesQuery = supabase
         .from('sales')
         .select('*, item:items(*)')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
@@ -127,11 +142,12 @@ export default function ProfitLossView() {
       setTotalCost(costTotal)
       setTotalProfit(profitTotal)
 
-      // Fetch expenses
+      // Fetch expenses for date range
       let expensesQuery = supabase
         .from('expenses')
         .select('amount')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
@@ -149,6 +165,10 @@ export default function ProfitLossView() {
   }
 
   const handleExport = (format: 'excel' | 'pdf' | 'csv') => {
+    const dateRangeLabel = startDate === endDate 
+      ? formatDate(startDate)
+      : `${formatDate(startDate)} - ${formatDate(endDate)}`
+
     const headers = ['Item', 'Quantity', 'Unit', 'Selling Price', 'Cost Price', 'Total Sales', 'Total Cost', 'Profit']
     const data = salesDetails.map(detail => [
       detail.item.name,
@@ -179,9 +199,9 @@ export default function ProfitLossView() {
 
     const options = {
       title: 'Profit & Loss Report',
-      subtitle: `Date: ${formatDate(selectedDate)}`,
+      subtitle: `Date Range: ${dateRangeLabel}`,
       organizationName: organization?.name || undefined,
-      filename: `profit-loss-${selectedDate}.${format === 'excel' ? 'xlsx' : format}`,
+      filename: `profit-loss-${startDate}-${endDate}.${format === 'excel' ? 'xlsx' : format}`,
     }
 
     if (format === 'excel') {
@@ -231,28 +251,62 @@ export default function ProfitLossView() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <label htmlFor="profit-date" className="block text-sm font-medium text-gray-700">
-            Select Date
-          </label>
-          <input
-            id="profit-date"
-            type="date"
-            value={selectedDate}
-            max={format(new Date(), 'yyyy-MM-dd')}
-            onChange={(e) => {
-              const selectedDate = e.target.value
-              const today = format(new Date(), 'yyyy-MM-dd')
-              if (selectedDate > today) {
-                alert('Cannot select future dates. Please select today or a past date.')
-                setSelectedDate(today)
-              } else {
-                setSelectedDate(selectedDate)
-              }
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-gray-900 cursor-pointer"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="profit-start-date" className="block text-sm font-medium text-gray-700 mb-2">
+              Start Date
+            </label>
+            <input
+              id="profit-start-date"
+              type="date"
+              value={startDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => {
+                const newStartDate = e.target.value
+                const today = format(new Date(), 'yyyy-MM-dd')
+                if (newStartDate > today) {
+                  alert('Cannot select future dates.')
+                  setStartDate(today)
+                } else if (newStartDate > endDate) {
+                  setEndDate(newStartDate)
+                  setStartDate(newStartDate)
+                } else {
+                  setStartDate(newStartDate)
+                }
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-gray-900 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label htmlFor="profit-end-date" className="block text-sm font-medium text-gray-700 mb-2">
+              End Date
+            </label>
+            <input
+              id="profit-end-date"
+              type="date"
+              value={endDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              min={startDate}
+              onChange={(e) => {
+                const newEndDate = e.target.value
+                const today = format(new Date(), 'yyyy-MM-dd')
+                if (newEndDate > today) {
+                  alert('Cannot select future dates.')
+                  setEndDate(today)
+                } else if (newEndDate < startDate) {
+                  alert('End date cannot be before start date.')
+                  setEndDate(startDate)
+                } else {
+                  setEndDate(newEndDate)
+                }
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-gray-900 cursor-pointer"
+            />
+          </div>
         </div>
+        <p className="mt-2 text-sm text-gray-500">
+          Showing data from {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} to ${formatDate(endDate)}`}
+        </p>
       </div>
 
       {loading ? (

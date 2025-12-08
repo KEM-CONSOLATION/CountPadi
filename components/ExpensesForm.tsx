@@ -11,7 +11,9 @@ export default function ExpensesForm() {
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd')) // For adding new expenses
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -24,7 +26,7 @@ export default function ExpensesForm() {
     fetchExpenses()
     fetchPreviousDaySales()
     fetchOrganization()
-  }, [date])
+  }, [startDate, endDate, date])
 
   const fetchOrganization = async () => {
     try {
@@ -55,7 +57,7 @@ export default function ExpensesForm() {
   }, [previousDaySales, totalExpenses])
 
   const fetchPreviousDaySales = async () => {
-    const previousDate = format(subDays(new Date(date), 1), 'yyyy-MM-dd')
+    const previousDate = format(subDays(new Date(startDate), 1), 'yyyy-MM-dd')
     const { data: sales } = await supabase
       .from('sales')
       .select('total_price')
@@ -66,11 +68,44 @@ export default function ExpensesForm() {
   }
 
   const fetchExpenses = async () => {
-    const { data, error } = await supabase
+    // Validate date range
+    if (startDate > endDate) {
+      setEndDate(startDate)
+      return
+    }
+
+    const today = format(new Date(), 'yyyy-MM-dd')
+    if (startDate > today || endDate > today) {
+      setStartDate(today)
+      setEndDate(today)
+      return
+    }
+
+    // Get user's organization_id
+    const { data: { user } } = await supabase.auth.getUser()
+    let organizationId: string | null = null
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+      organizationId = profile?.organization_id || null
+    }
+
+    let expensesQuery = supabase
       .from('expenses')
       .select('*, recorded_by_profile:profiles(*)')
-      .eq('date', date)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false })
       .order('created_at', { ascending: false })
+
+    if (organizationId) {
+      expensesQuery = expensesQuery.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await expensesQuery
 
     if (error) {
       setMessage({ type: 'error', text: 'Failed to fetch expenses' })
@@ -299,10 +334,72 @@ export default function ExpensesForm() {
         </div>
       </form>
 
+      <div className="mt-6 mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Filter Expenses by Date Range</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="expense-start-date-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              Start Date
+            </label>
+            <input
+              id="expense-start-date-filter"
+              type="date"
+              value={startDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => {
+                const newStartDate = e.target.value
+                const today = format(new Date(), 'yyyy-MM-dd')
+                if (newStartDate > today) {
+                  alert('Cannot select future dates.')
+                  setStartDate(today)
+                } else if (newStartDate > endDate) {
+                  setEndDate(newStartDate)
+                  setStartDate(newStartDate)
+                } else {
+                  setStartDate(newStartDate)
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label htmlFor="expense-end-date-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              End Date
+            </label>
+            <input
+              id="expense-end-date-filter"
+              type="date"
+              value={endDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              min={startDate}
+              onChange={(e) => {
+                const newEndDate = e.target.value
+                const today = format(new Date(), 'yyyy-MM-dd')
+                if (newEndDate > today) {
+                  alert('Cannot select future dates.')
+                  setEndDate(today)
+                } else if (newEndDate < startDate) {
+                  alert('End date cannot be before start date.')
+                  setEndDate(startDate)
+                } else {
+                  setEndDate(newEndDate)
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
+            />
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-gray-500">
+          Showing expenses from {startDate === endDate ? format(new Date(startDate), 'MMM dd, yyyy') : `${format(new Date(startDate), 'MMM dd, yyyy')} to ${format(new Date(endDate), 'MMM dd, yyyy')}`}
+        </p>
+      </div>
+
       {expenses.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">Expenses for {format(new Date(date), 'MMM dd, yyyy')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Expenses {startDate === endDate ? `for ${format(new Date(startDate), 'MMM dd, yyyy')}` : `from ${format(new Date(startDate), 'MMM dd')} to ${format(new Date(endDate), 'MMM dd, yyyy')}`}
+            </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -317,11 +414,15 @@ export default function ExpensesForm() {
                   const summaryRow = ['', '', `Total: ${formatCurrency(totalExpenses)}`, '', '']
                   const exportData = [...data, [], summaryRow]
                   
+                  const dateRangeLabel = startDate === endDate 
+                    ? formatDate(startDate)
+                    : `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  
                   exportToExcel(exportData, headers, {
                     title: 'Expenses Report',
-                    subtitle: `Date: ${formatDate(date)}`,
+                    subtitle: `Date Range: ${dateRangeLabel}`,
                     organizationName: organization?.name || undefined,
-                    filename: `expenses-${date}.xlsx`,
+                    filename: `expenses-${startDate}-${endDate}.xlsx`,
                   })
                 }}
                 className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1"
@@ -345,11 +446,15 @@ export default function ExpensesForm() {
                   const summaryRow = ['', '', `Total: ${formatCurrency(totalExpenses)}`, '', '']
                   const exportData = [...data, [], summaryRow]
                   
+                  const dateRangeLabel = startDate === endDate 
+                    ? formatDate(startDate)
+                    : `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  
                   exportToPDF(exportData, headers, {
                     title: 'Expenses Report',
-                    subtitle: `Date: ${formatDate(date)}`,
+                    subtitle: `Date Range: ${dateRangeLabel}`,
                     organizationName: organization?.name || undefined,
-                    filename: `expenses-${date}.pdf`,
+                    filename: `expenses-${startDate}-${endDate}.pdf`,
                   })
                 }}
                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-1"
@@ -373,11 +478,15 @@ export default function ExpensesForm() {
                   const summaryRow = ['', '', `Total: ${formatCurrency(totalExpenses)}`, '', '']
                   const exportData = [...data, [], summaryRow]
                   
+                  const dateRangeLabel = startDate === endDate 
+                    ? formatDate(startDate)
+                    : `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  
                   exportToCSV(exportData, headers, {
                     title: 'Expenses Report',
-                    subtitle: `Date: ${formatDate(date)}`,
+                    subtitle: `Date Range: ${dateRangeLabel}`,
                     organizationName: organization?.name || undefined,
-                    filename: `expenses-${date}.csv`,
+                    filename: `expenses-${startDate}-${endDate}.csv`,
                   })
                 }}
                 className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1"

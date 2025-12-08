@@ -14,11 +14,12 @@ export default function DashboardStatsCards() {
     todaySalesAmount: 0,
   })
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
     fetchStats()
-  }, [selectedDate])
+  }, [startDate, endDate])
 
   const fetchStats = async () => {
     setLoading(true)
@@ -35,25 +36,41 @@ export default function DashboardStatsCards() {
         organizationId = profile?.organization_id || null
       }
 
-      // Fetch opening stock count for selected date
+      // Validate date range
+      if (startDate > endDate) {
+        setEndDate(startDate)
+        return
+      }
+
+      const today = format(new Date(), 'yyyy-MM-dd')
+      if (startDate > today || endDate > today) {
+        setStartDate(today)
+        setEndDate(today)
+        return
+      }
+
+      // Fetch opening stock count for date range
       let openingQuery = supabase
         .from('opening_stock')
         .select('id')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       if (organizationId) openingQuery = openingQuery.eq('organization_id', organizationId)
       const { data: openingData } = await openingQuery
 
       let closingQuery = supabase
         .from('closing_stock')
         .select('id')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       if (organizationId) closingQuery = closingQuery.eq('organization_id', organizationId)
       const { data: closingData } = await closingQuery
 
       let salesQuery = supabase
         .from('sales')
         .select('total_price')
-        .eq('date', selectedDate)
+        .gte('date', startDate)
+        .lte('date', endDate)
       if (organizationId) salesQuery = salesQuery.eq('organization_id', organizationId)
       const { data: salesData } = await salesQuery
 
@@ -86,36 +103,68 @@ export default function DashboardStatsCards() {
     )
   }
 
-  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
-  const dateLabel = isToday ? 'today' : format(new Date(selectedDate), 'MMM dd, yyyy')
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const isToday = startDate === today && endDate === today
+  const getDateRangeLabel = () => {
+    if (startDate === endDate) {
+      return format(new Date(startDate), 'MMM dd, yyyy')
+    }
+    return `${format(new Date(startDate), 'MMM dd')} - ${format(new Date(endDate), 'MMM dd, yyyy')}`
+  }
+  const dateLabel = isToday ? 'today' : getDateRangeLabel()
   const sectionTitle = isToday 
     ? 'Inventory & Sales Overview' 
-    : `Inventory & Sales Overview - ${format(new Date(selectedDate), 'MMM dd, yyyy')}`
+    : `Inventory & Sales Overview - ${getDateRangeLabel()}`
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">{sectionTitle}</h2>
         <div className="flex items-center gap-2">
-          <label htmlFor="inventory-date" className="text-sm text-gray-600 whitespace-nowrap">
-            Filter by Date:
+          <label htmlFor="inventory-start-date" className="text-sm text-gray-600 whitespace-nowrap">
+            Date Range:
           </label>
           <input
             type="date"
-            id="inventory-date"
-            value={selectedDate}
+            id="inventory-start-date"
+            value={startDate}
             max={format(new Date(), 'yyyy-MM-dd')}
             onChange={(e) => {
-              const selected = e.target.value
+              const newStartDate = e.target.value
               const today = format(new Date(), 'yyyy-MM-dd')
-              if (selected > today) {
-                alert('Cannot select future dates. Please select today or a past date.')
-                setSelectedDate(today)
+              if (newStartDate > today) {
+                alert('Cannot select future dates.')
+                setStartDate(today)
+              } else if (newStartDate > endDate) {
+                setEndDate(newStartDate)
+                setStartDate(newStartDate)
               } else {
-                setSelectedDate(selected)
+                setStartDate(newStartDate)
               }
             }}
-            className="px-3 py-1.5  text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="px-3 py-1.5 text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <span className="text-gray-500">to</span>
+          <input
+            type="date"
+            id="inventory-end-date"
+            value={endDate}
+            max={format(new Date(), 'yyyy-MM-dd')}
+            min={startDate}
+            onChange={(e) => {
+              const newEndDate = e.target.value
+              const today = format(new Date(), 'yyyy-MM-dd')
+              if (newEndDate > today) {
+                alert('Cannot select future dates.')
+                setEndDate(today)
+              } else if (newEndDate < startDate) {
+                alert('End date cannot be before start date.')
+                setEndDate(startDate)
+              } else {
+                setEndDate(newEndDate)
+              }
+            }}
+            className="px-3 py-1.5 text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
       </div>
@@ -175,7 +224,7 @@ export default function DashboardStatsCards() {
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-1">{isToday ? "Today's" : "Sales for"} Sales</h2>
         <p className="text-3xl font-bold text-blue-600 mb-1">₦{stats.todaySalesAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        <p className="text-gray-600 text-sm">{stats.todaySalesCount} transaction{stats.todaySalesCount !== 1 ? 's' : ''} {!isToday && `on ${format(new Date(selectedDate), 'MMM dd')}`}</p>
+        <p className="text-gray-600 text-sm">{stats.todaySalesCount} transaction{stats.todaySalesCount !== 1 ? 's' : ''} {!isToday && `(${getDateRangeLabel()})`}</p>
       </Link>
       </div>
     </div>
