@@ -14,30 +14,48 @@ export default function DashboardStatsCards() {
     todaySalesAmount: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [selectedDate])
 
   const fetchStats = async () => {
-    const today = format(new Date(), 'yyyy-MM-dd')
-
+    setLoading(true)
     try {
-      // Fetch opening stock count for today
-      const { data: openingData } = await supabase
+      // Get user's organization_id for filtering
+      const { data: { user } } = await supabase.auth.getUser()
+      let organizationId: string | null = null
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+        organizationId = profile?.organization_id || null
+      }
+
+      // Fetch opening stock count for selected date
+      let openingQuery = supabase
         .from('opening_stock')
         .select('id')
-        .eq('date', today)
+        .eq('date', selectedDate)
+      if (organizationId) openingQuery = openingQuery.eq('organization_id', organizationId)
+      const { data: openingData } = await openingQuery
 
-      const { data: closingData } = await supabase
+      let closingQuery = supabase
         .from('closing_stock')
         .select('id')
-        .eq('date', today)
+        .eq('date', selectedDate)
+      if (organizationId) closingQuery = closingQuery.eq('organization_id', organizationId)
+      const { data: closingData } = await closingQuery
 
-      const { data: salesData } = await supabase
+      let salesQuery = supabase
         .from('sales')
         .select('total_price')
-        .eq('date', today)
+        .eq('date', selectedDate)
+      if (organizationId) salesQuery = salesQuery.eq('organization_id', organizationId)
+      const { data: salesData } = await salesQuery
 
       const salesAmount = salesData?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
 
@@ -68,8 +86,37 @@ export default function DashboardStatsCards() {
     )
   }
 
+  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
+  const dateLabel = isToday ? 'today' : format(new Date(selectedDate), 'MMM dd, yyyy')
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Inventory & Sales Overview</h2>
+        <div className="flex items-center gap-2">
+          <label htmlFor="inventory-date" className="text-sm text-gray-600 whitespace-nowrap">
+            Filter by Date:
+          </label>
+          <input
+            type="date"
+            id="inventory-date"
+            value={selectedDate}
+            max={format(new Date(), 'yyyy-MM-dd')}
+            onChange={(e) => {
+              const selected = e.target.value
+              const today = format(new Date(), 'yyyy-MM-dd')
+              if (selected > today) {
+                alert('Cannot select future dates. Please select today or a past date.')
+                setSelectedDate(today)
+              } else {
+                setSelectedDate(selected)
+              }
+            }}
+            className="px-3 py-1.5  text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {/* Opening Stock Card */}
       <Link
         href="/dashboard/opening-stock"
@@ -87,7 +134,7 @@ export default function DashboardStatsCards() {
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-1">Opening Stock</h2>
         <p className="text-3xl font-bold text-indigo-600 mb-2">{stats.openingStockCount}</p>
-        <p className="text-gray-600 text-sm">Items recorded today</p>
+        <p className="text-gray-600 text-sm">Items recorded {dateLabel}</p>
       </Link>
 
       <Link
@@ -106,7 +153,7 @@ export default function DashboardStatsCards() {
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-1">Closing Stock</h2>
         <p className="text-3xl font-bold text-green-600 mb-2">{stats.closingStockCount}</p>
-        <p className="text-gray-600 text-sm">Items recorded today</p>
+        <p className="text-gray-600 text-sm">Items recorded {dateLabel}</p>
       </Link>
 
       <Link
@@ -123,10 +170,11 @@ export default function DashboardStatsCards() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-1">Today's Sales</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">{isToday ? "Today's" : "Sales for"} Sales</h2>
         <p className="text-3xl font-bold text-blue-600 mb-1">₦{stats.todaySalesAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        <p className="text-gray-600 text-sm">{stats.todaySalesCount} transaction{stats.todaySalesCount !== 1 ? 's' : ''}</p>
+        <p className="text-gray-600 text-sm">{stats.todaySalesCount} transaction{stats.todaySalesCount !== 1 ? 's' : ''} {!isToday && `on ${format(new Date(selectedDate), 'MMM dd')}`}</p>
       </Link>
+      </div>
     </div>
   )
 }

@@ -85,6 +85,7 @@ export async function recalculateClosingStock(
     const prevDateStr = `${prevYear}-${prevMonth}-${prevDay}`
 
     // Helper function to add organization filter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const addOrgFilter = (query: any) => {
       return organizationId ? query.eq('organization_id', organizationId) : query
     }
@@ -262,6 +263,7 @@ export async function cascadeUpdateFromDate(start_date: string, user_id: string)
     const nextDateStr = formatDateLocal(nextDate)
 
     // Helper function to add organization filter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const addOrgFilter = (query: any) => {
       return organizationId ? query.eq('organization_id', organizationId) : query
     }
@@ -288,13 +290,7 @@ export async function cascadeUpdateFromDate(start_date: string, user_id: string)
     currentOpeningStockQuery = addOrgFilter(currentOpeningStockQuery)
     const { data: currentOpeningStock } = await currentOpeningStockQuery
 
-    // Check if opening stock already exists for next date (manually entered)
-    let existingNextOpeningStockQuery = supabaseAdmin
-      .from('opening_stock')
-      .select('item_id, quantity')
-      .eq('date', nextDateStr)
-    existingNextOpeningStockQuery = addOrgFilter(existingNextOpeningStockQuery)
-    const { data: existingNextOpeningStock } = await existingNextOpeningStockQuery
+    // Note: We'll fetch existing opening stock with prices below to preserve them
 
     // Get all items for this organization
     let itemsQuery = supabaseAdmin
@@ -313,6 +309,14 @@ export async function cascadeUpdateFromDate(start_date: string, user_id: string)
       continue
     }
 
+    // Get existing opening stock prices for next date to preserve them
+    let existingNextOpeningStockWithPricesQuery = supabaseAdmin
+      .from('opening_stock')
+      .select('item_id, quantity, cost_price, selling_price')
+      .eq('date', nextDateStr)
+    existingNextOpeningStockWithPricesQuery = addOrgFilter(existingNextOpeningStockWithPricesQuery)
+    const { data: existingNextOpeningStockWithPrices } = await existingNextOpeningStockWithPricesQuery
+
     // Update/create opening stock for next date based on current date's closing stock
     // ALWAYS update to match previous day's closing stock for consistency
     const openingStockToUpsert = items
@@ -323,16 +327,30 @@ export async function cascadeUpdateFromDate(start_date: string, user_id: string)
       .map((item) => {
         const closing = closingStock.find((cs) => cs.item_id === item.id)
         const currentOpening = currentOpeningStock?.find((os) => os.item_id === item.id)
-        const existingOpening = existingNextOpeningStock?.find((os) => os.item_id === item.id)
+        const existingOpening = existingNextOpeningStockWithPrices?.find((os) => os.item_id === item.id)
         
         // ALWAYS use closing stock quantity as opening stock for next day
         // This ensures consistency: closing stock of one day = opening stock of next day
         // If no closing stock, use zero (quantities only come from opening/closing stock)
         const openingQty = closing ? parseFloat(closing.quantity.toString()) : 0
         
-        // Use prices from current date's opening stock, or item's current prices
-        const costPrice = currentOpening?.cost_price ?? item.cost_price
-        const sellingPrice = currentOpening?.selling_price ?? item.selling_price
+        // CRITICAL: Preserve existing prices if opening stock already exists
+        // Only set prices when creating NEW records, using current date's opening stock prices
+        // This prevents restocking price changes from affecting past dates
+        let costPrice: number | null | undefined
+        let sellingPrice: number | null | undefined
+        
+        if (existingOpening) {
+          // Preserve existing prices - never update prices of existing opening stock
+          costPrice = existingOpening.cost_price
+          sellingPrice = existingOpening.selling_price
+        } else {
+          // Only set prices when creating NEW opening stock
+          // Use current date's opening stock prices, or null if not available
+          // Do NOT use item's current price as fallback to prevent restocking price changes from affecting past dates
+          costPrice = currentOpening?.cost_price ?? null
+          sellingPrice = currentOpening?.selling_price ?? null
+        }
 
         // Determine if this is an update or new entry
         const isUpdate = existingOpening && existingOpening.quantity !== openingQty

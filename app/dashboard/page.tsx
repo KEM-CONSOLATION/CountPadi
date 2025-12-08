@@ -43,18 +43,13 @@ export default async function DashboardPage() {
           <p className="mt-2 text-gray-600">Overview of your inventory and sales performance</p>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Inventory & Sales Overview</h2>
-          <DashboardStatsCards />
-        </div>
+        <DashboardStatsCards />
 
         <div className="mt-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Today's Profit & Loss</h2>
           <ProfitLossStatsCards />
         </div>
 
         <div className="mt-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Expenses & Balance</h2>
           <ExpenseStatsCards />
         </div>
 

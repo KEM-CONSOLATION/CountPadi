@@ -217,7 +217,9 @@ export default function RestockingForm() {
         return
       }
 
-      // Update item prices if provided
+      // Update item prices if provided (for future reference)
+      // BUT: Do NOT update opening stock prices - past records keep their original prices
+      // Price changes only take effect on next day's opening stock (via auto-create-opening API)
       if (costPrice || sellingPrice) {
         const updateData: { cost_price?: number; selling_price?: number } = {}
         
@@ -236,7 +238,7 @@ export default function RestockingForm() {
         }
         
         if (Object.keys(updateData).length > 0) {
-          // Update item prices
+          // Update item prices (for future reference, but doesn't affect past records)
           const { error: itemPriceError } = await supabase
             .from('items')
             .update(updateData)
@@ -245,108 +247,98 @@ export default function RestockingForm() {
           if (itemPriceError) {
             console.error('Failed to update item prices:', itemPriceError)
             // Don't throw - restocking can still succeed even if price update fails
-          } else {
-            // Also update opening stock prices for this date if opening stock exists
-            // Calculate weighted average price: (Opening Stock Qty × Opening Price + Restocking Qty × Restocking Price) / Total Qty
-            const { data: existingOpeningStock } = await supabase
-              .from('opening_stock')
-              .select('quantity, cost_price, selling_price')
-              .eq('item_id', selectedItem)
-              .eq('date', date)
-              .single()
-            
-            if (existingOpeningStock) {
-              // Calculate weighted average prices
-              const openingQty = parseFloat(existingOpeningStock.quantity.toString())
-              const restockingQty = parseFloat(quantity)
-              const totalQty = openingQty + restockingQty
-              
-              const weightedPriceUpdate: { cost_price?: number; selling_price?: number } = {}
-              
-              if (costPrice && totalQty > 0) {
-                const costPriceValue = parseFloat(costPrice)
-                const openingCostPrice = existingOpeningStock.cost_price || 0
-                // Weighted average: (Opening Qty × Opening Price + Restocking Qty × Restocking Price) / Total Qty
-                const weightedCostPrice = (openingQty * openingCostPrice + restockingQty * costPriceValue) / totalQty
-                weightedPriceUpdate.cost_price = weightedCostPrice
-              }
-              
-              if (sellingPrice && totalQty > 0) {
-                const sellingPriceValue = parseFloat(sellingPrice)
-                const openingSellingPrice = existingOpeningStock.selling_price || 0
-                // Weighted average: (Opening Qty × Opening Price + Restocking Qty × Restocking Price) / Total Qty
-                const weightedSellingPrice = (openingQty * openingSellingPrice + restockingQty * sellingPriceValue) / totalQty
-                weightedPriceUpdate.selling_price = weightedSellingPrice
-              }
-              
-              // Only update if we calculated weighted averages
-              if (Object.keys(weightedPriceUpdate).length > 0) {
-                const { error: openingStockPriceError } = await supabase
-                  .from('opening_stock')
-                  .update(weightedPriceUpdate)
-                  .eq('item_id', selectedItem)
-                  .eq('date', date)
-                
-                if (openingStockPriceError) {
-                  console.error('Failed to update opening stock prices:', openingStockPriceError)
-                  // Don't throw - restocking can still succeed even if opening stock price update fails
-                }
-              }
-            } else {
-              const { data: { user: currentUser } } = await supabase.auth.getUser()
-              if (currentUser) {
-                const { data: profile } = await supabase
-                  .from('profiles')
-                  .select('organization_id')
-                  .eq('id', currentUser.id)
-                  .single()
-                
-                const openingStockData: {
-                  item_id: string
-                  quantity: number
-                  date: string
-                  recorded_by: string
-                  notes: string
-                  cost_price?: number | null
-                  selling_price?: number | null
-                  organization_id?: string | null
-                } = {
-                  item_id: selectedItem,
-                  quantity: 0,
-                  date,
-                  recorded_by: currentUser.id,
-                  notes: 'Auto-created from restocking',
-                  organization_id: profile?.organization_id || null,
-                }
-                
-                if (costPrice) {
-                  const costPriceValue = parseFloat(costPrice)
-                  if (!isNaN(costPriceValue) && costPriceValue >= 0) {
-                    openingStockData.cost_price = costPriceValue
-                  }
-                }
-                
-                if (sellingPrice) {
-                  const sellingPriceValue = parseFloat(sellingPrice)
-                  if (!isNaN(sellingPriceValue) && sellingPriceValue >= 0) {
-                    openingStockData.selling_price = sellingPriceValue
-                  }
-                }
-                
-                const { error: createOpeningStockError, data: createdOpeningStock } = await supabase
-                  .from('opening_stock')
-                  .upsert(openingStockData, {
-                    onConflict: 'item_id,date,organization_id',
-                  })
-                  .select()
-                
-                if (createOpeningStockError) {
-                  console.error('Failed to create opening stock:', createOpeningStockError)
-                }
-              }
-            }
           }
         }
+      }
+      
+      // Create opening stock if it doesn't exist (for quantity tracking)
+      // But we don't set prices on it - prices come from previous day's opening stock or item
+      // This ensures past records keep their original prices
+      const { data: existingOpeningStock } = await supabase
+        .from('opening_stock')
+        .select('id, cost_price, selling_price')
+        .eq('item_id', selectedItem)
+        .eq('date', date)
+        .limit(1)
+      
+      if (!existingOpeningStock || existingOpeningStock.length === 0) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (currentUser) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', currentUser.id)
+            .single()
+          
+          // Get previous day's opening stock to preserve prices
+          const prevDate = new Date(date + 'T00:00:00')
+          prevDate.setDate(prevDate.getDate() - 1)
+          const prevDateStr = prevDate.toISOString().split('T')[0]
+          
+          let prevOpeningStockQuery = supabase
+            .from('opening_stock')
+            .select('cost_price, selling_price')
+            .eq('item_id', selectedItem)
+            .eq('date', prevDateStr)
+            .limit(1)
+          if (profile?.organization_id) {
+            prevOpeningStockQuery = prevOpeningStockQuery.eq('organization_id', profile.organization_id)
+          }
+          const { data: prevOpeningStock } = await prevOpeningStockQuery
+          
+          // Get item to use as fallback if no previous opening stock
+          const { data: item } = await supabase
+            .from('items')
+            .select('cost_price, selling_price')
+            .eq('id', selectedItem)
+            .single()
+          
+          // Create opening stock with quantity 0 (if it doesn't exist)
+          // Use previous day's opening stock prices, or item's prices as fallback
+          // Do NOT use restocking prices - they only affect the next day
+          const openingStockData: {
+            item_id: string
+            quantity: number
+            date: string
+            recorded_by: string
+            notes: string
+            organization_id?: string | null
+            cost_price?: number | null
+            selling_price?: number | null
+          } = {
+            item_id: selectedItem,
+            quantity: 0,
+            date,
+            recorded_by: currentUser.id,
+            notes: 'Auto-created from restocking',
+            organization_id: profile?.organization_id || null,
+          }
+          
+          // Use previous day's prices if available, otherwise item's prices
+          // This preserves price history and prevents restocking from affecting current date
+          if (prevOpeningStock && prevOpeningStock.length > 0) {
+            openingStockData.cost_price = prevOpeningStock[0].cost_price ?? null
+            openingStockData.selling_price = prevOpeningStock[0].selling_price ?? null
+          } else if (item) {
+            openingStockData.cost_price = item.cost_price ?? null
+            openingStockData.selling_price = item.selling_price ?? null
+          }
+          
+          const { error: createOpeningStockError } = await supabase
+            .from('opening_stock')
+            .upsert(openingStockData, {
+              onConflict: 'item_id,date,organization_id',
+            })
+          
+          if (createOpeningStockError) {
+            console.error('Failed to create opening stock:', createOpeningStockError)
+            // Don't throw - restocking can still succeed
+          }
+        }
+      } else {
+        // Opening stock already exists - ensure we don't update its prices
+        // Prices should remain as they were originally set
+        // This prevents restocking from affecting existing opening stock prices
       }
 
       // Prepare price data for restocking record
@@ -681,7 +673,7 @@ export default function RestockingForm() {
               id="filterDate"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="px-3 py-1.5 border  text-gray-900 border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {filterDate && (
               <button

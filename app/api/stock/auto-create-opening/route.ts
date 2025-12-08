@@ -70,13 +70,29 @@ export async function POST(request: NextRequest) {
     prevClosingStockQuery = addOrgFilter(prevClosingStockQuery)
     const { data: prevClosingStock } = await prevClosingStockQuery
 
-    // Get previous day's opening stock to use prices if available
-    let prevOpeningStockQuery = supabaseAdmin
-      .from('opening_stock')
-      .select('item_id, cost_price, selling_price')
-      .eq('date', prevDateStr)
-    prevOpeningStockQuery = addOrgFilter(prevOpeningStockQuery)
-    const { data: prevOpeningStock } = await prevOpeningStockQuery
+    // Get latest restocking prices for each item (to use for next day's opening stock)
+    // This ensures price changes from restocking are reflected in the next day
+    let latestRestockingQuery = supabaseAdmin
+      .from('restocking')
+      .select('item_id, cost_price, selling_price, date')
+      .lte('date', prevDateStr) // All restocking up to and including previous day
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+    latestRestockingQuery = addOrgFilter(latestRestockingQuery)
+    const { data: allRestockings } = await latestRestockingQuery
+
+    // Group by item_id and get the most recent restocking for each item
+    const latestRestockingByItem = new Map<string, { cost_price: number | null; selling_price: number | null }>()
+    if (allRestockings) {
+      allRestockings.forEach((restocking: any) => {
+        if (!latestRestockingByItem.has(restocking.item_id)) {
+          latestRestockingByItem.set(restocking.item_id, {
+            cost_price: restocking.cost_price,
+            selling_price: restocking.selling_price,
+          })
+        }
+      })
+    }
 
     // Check if opening stock already exists for this date
     let existingOpeningStockQuery = supabaseAdmin
@@ -88,20 +104,56 @@ export async function POST(request: NextRequest) {
 
     const existingItemIds = new Set(existingOpeningStock?.map((os) => os.item_id) || [])
 
+    // Get previous day's opening stock prices for all items (to preserve price history)
+    let prevOpeningStockQuery = supabaseAdmin
+      .from('opening_stock')
+      .select('item_id, cost_price, selling_price')
+      .eq('date', prevDateStr)
+    prevOpeningStockQuery = addOrgFilter(prevOpeningStockQuery)
+    const { data: prevOpeningStock } = await prevOpeningStockQuery
+    
+    // Create a map of previous day's opening stock prices by item_id
+    const prevOpeningStockByItem = new Map<string, { cost_price: number | null; selling_price: number | null }>()
+    if (prevOpeningStock) {
+      prevOpeningStock.forEach((os: any) => {
+        prevOpeningStockByItem.set(os.item_id, {
+          cost_price: os.cost_price,
+          selling_price: os.selling_price,
+        })
+      })
+    }
+
     // Create opening stock records from previous day's closing stock
     const openingStockRecords = items
       .filter((item) => !existingItemIds.has(item.id)) // Only create if doesn't exist
       .map((item) => {
         const prevClosing = prevClosingStock?.find((cs) => cs.item_id === item.id)
-        const prevOpening = prevOpeningStock?.find((os) => os.item_id === item.id)
+        const latestRestocking = latestRestockingByItem.get(item.id)
+        const prevOpening = prevOpeningStockByItem.get(item.id)
         
         // Use previous day's closing stock if exists, otherwise use zero
         // Quantities only come from opening/closing stock - if not present, use zero
         const openingStock = prevClosing ? parseFloat(prevClosing.quantity.toString()) : 0
         
-        // Use previous day's prices if available, otherwise use item's current prices
-        const costPrice = prevOpening?.cost_price ?? item.cost_price
-        const sellingPrice = prevOpening?.selling_price ?? item.selling_price
+        // Use latest restocking price if available (price changes take effect on next day)
+        // If no restocking price, use previous day's opening stock price to preserve price history
+        // Only fall back to item's current price if neither exists (for new items)
+        let costPrice: number | null = null
+        let sellingPrice: number | null = null
+        
+        if (latestRestocking) {
+          // Latest restocking price takes precedence (price changes take effect on next day)
+          costPrice = latestRestocking.cost_price ?? null
+          sellingPrice = latestRestocking.selling_price ?? null
+        } else if (prevOpening) {
+          // No restocking - use previous day's opening stock price to preserve price history
+          costPrice = prevOpening.cost_price ?? null
+          sellingPrice = prevOpening.selling_price ?? null
+        } else {
+          // Fall back to item's current price only if no previous opening stock exists
+          costPrice = item.cost_price ?? null
+          sellingPrice = item.selling_price ?? null
+        }
 
         return {
           item_id: item.id,
@@ -112,7 +164,7 @@ export async function POST(request: NextRequest) {
           recorded_by: user_id,
           organization_id: organizationId,
           notes: prevClosing
-            ? `Auto-created from previous day's closing stock (${prevDateStr})`
+            ? `Auto-created from previous day's closing stock (${prevDateStr})${latestRestocking ? ' with latest restocking prices' : ''}`
             : `Auto-created with zero quantity (no closing stock found for ${prevDateStr})`,
         }
       })

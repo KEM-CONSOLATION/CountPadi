@@ -13,13 +13,13 @@ export default function ProfitLossStatsCards() {
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [netProfit, setNetProfit] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [selectedDate])
 
   const fetchStats = async () => {
-    const today = format(new Date(), 'yyyy-MM-dd')
     setLoading(true)
 
     try {
@@ -35,11 +35,11 @@ export default function ProfitLossStatsCards() {
         organizationId = profile?.organization_id || null
       }
 
-      // Fetch sales for today
+      // Fetch sales for selected date
       let salesQuery = supabase
         .from('sales')
         .select('*, item:items(*)')
-        .eq('date', today)
+        .eq('date', selectedDate)
       
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
@@ -87,7 +87,7 @@ export default function ProfitLossStatsCards() {
       let expensesQuery = supabase
         .from('expenses')
         .select('amount')
-        .eq('date', today)
+        .eq('date', selectedDate)
       
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
@@ -120,7 +120,33 @@ export default function ProfitLossStatsCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Today&apos;s Profit & Loss</h2>
+        <div className="flex items-center gap-2">
+          <label htmlFor="profit-date" className="text-sm text-gray-600 whitespace-nowrap">
+            Filter by Date:
+          </label>
+          <input
+            type="date"
+            id="profit-date"
+            value={selectedDate}
+            max={format(new Date(), 'yyyy-MM-dd')}
+            onChange={(e) => {
+              const selected = e.target.value
+              const today = format(new Date(), 'yyyy-MM-dd')
+              if (selected > today) {
+                alert('Cannot select future dates. Please select today or a past date.')
+                setSelectedDate(today)
+              } else {
+                setSelectedDate(selected)
+              }
+            }}
+            className="px-3 py-1.5  text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Total Sales Card */}
       <Link
         href="/dashboard/profit-loss"
@@ -221,6 +247,7 @@ export default function ProfitLossStatsCards() {
         </p>
         <p className="text-xs text-gray-500 mt-1">(After expenses: ₦{totalExpenses.toFixed(2)})</p>
       </Link>
+      </div>
     </div>
   )
 }

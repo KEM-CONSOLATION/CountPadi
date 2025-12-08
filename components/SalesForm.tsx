@@ -532,20 +532,34 @@ export default function SalesForm() {
         })
       })
 
-      // Auto-select the best batch: prefer batches with the most available stock
-      // This ensures we select the batch that can fulfill the largest quantity
+      // Auto-select the best batch: FIFO (First In, First Out)
+      // Opening stock should be sold first, then restocking batches in chronological order
       if (batches.length > 0) {
-        // Sort batches by available stock (descending), then prefer restocking over opening stock
+        // Sort batches: opening stock first, then restocking by date (oldest first)
         const sortedBatches = [...batches].sort((a, b) => {
-          if (b.available !== a.available) {
-            return b.available - a.available // More available stock first
+          // Opening stock always comes first
+          if (a.type === 'opening_stock' && b.type === 'restocking') return -1
+          if (a.type === 'restocking' && b.type === 'opening_stock') return 1
+          
+          // If both are restocking, sort by date (older first for FIFO)
+          if (a.type === 'restocking' && b.type === 'restocking') {
+            const restockA = restockings.find(r => r.id === a.id)
+            const restockB = restockings.find(r => r.id === b.id)
+            if (restockA && restockB) {
+              const dateA = new Date(restockA.date).getTime()
+              const dateB = new Date(restockB.date).getTime()
+              if (dateA !== dateB) return dateA - dateB
+              // If same date, use created_at
+              const createdA = new Date(restockA.created_at || 0).getTime()
+              const createdB = new Date(restockB.created_at || 0).getTime()
+              return createdA - createdB
+            }
           }
-          // If same availability, prefer restocking
-          if (a.type === 'restocking' && b.type === 'opening_stock') return -1
-          if (a.type === 'opening_stock' && b.type === 'restocking') return 1
+          
           return 0
         })
         
+        // Find the first batch with available stock (FIFO)
         const bestBatch = sortedBatches.find(b => b.available > 0) || sortedBatches[0]
         
         if (bestBatch) {

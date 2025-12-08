@@ -10,30 +10,47 @@ export default function ExpenseStatsCards() {
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [selectedDate])
 
   const fetchStats = async () => {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    const previousDate = format(subDays(new Date(today), 1), 'yyyy-MM-dd')
+    setLoading(true)
+    const previousDate = format(subDays(new Date(selectedDate), 1), 'yyyy-MM-dd')
 
     try {
+      // Get user's organization_id for filtering
+      const { data: { user } } = await supabase.auth.getUser()
+      let organizationId: string | null = null
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+        organizationId = profile?.organization_id || null
+      }
+
       // Fetch previous day sales
-      const { data: sales } = await supabase
+      let salesQuery = supabase
         .from('sales')
         .select('total_price')
         .eq('date', previousDate)
+      if (organizationId) salesQuery = salesQuery.eq('organization_id', organizationId)
+      const { data: sales } = await salesQuery
 
       const salesTotal = sales?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
       setPreviousDaySales(salesTotal)
 
-      // Fetch today's expenses
-      const { data: expenses } = await supabase
+      // Fetch expenses for selected date
+      let expensesQuery = supabase
         .from('expenses')
         .select('amount')
-        .eq('date', today)
+        .eq('date', selectedDate)
+      if (organizationId) expensesQuery = expensesQuery.eq('organization_id', organizationId)
+      const { data: expenses } = await expensesQuery
 
       const expensesTotal = (expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0)
       setTotalExpenses(expensesTotal)
@@ -61,8 +78,38 @@ export default function ExpenseStatsCards() {
     )
   }
 
+  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
+  const dateLabel = isToday ? 'today' : format(new Date(selectedDate), 'MMM dd, yyyy')
+  const previousDateLabel = format(subDays(new Date(selectedDate), 1), 'MMM dd, yyyy')
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Expenses & Balance</h2>
+        <div className="flex items-center gap-2">
+          <label htmlFor="expense-date" className="text-sm text-gray-600 whitespace-nowrap">
+            Filter by Date:
+          </label>
+          <input
+            type="date"
+            id="expense-date"
+            value={selectedDate}
+            max={format(new Date(), 'yyyy-MM-dd')}
+            onChange={(e) => {
+              const selected = e.target.value
+              const today = format(new Date(), 'yyyy-MM-dd')
+              if (selected > today) {
+                alert('Cannot select future dates. Please select today or a past date.')
+                setSelectedDate(today)
+              } else {
+                setSelectedDate(selected)
+              }
+            }}
+            className="px-3 py-1.5  text-gray-900 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {/* Previous Day Sales Card */}
       <Link
         href="/dashboard/expenses"
@@ -78,7 +125,7 @@ export default function ExpenseStatsCards() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
-        <p className="text-sm text-blue-600 mb-1">Previous Day Sales</p>
+        <p className="text-sm text-blue-600 mb-1">Previous Day Sales ({previousDateLabel})</p>
         <p className="text-2xl font-bold text-blue-900">₦{previousDaySales.toFixed(2)}</p>
       </Link>
 
@@ -97,7 +144,7 @@ export default function ExpenseStatsCards() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
-        <p className="text-sm text-red-600 mb-1">Total Expenses Today</p>
+        <p className="text-sm text-red-600 mb-1">Total Expenses {isToday ? 'Today' : `(${dateLabel})`}</p>
         <p className="text-2xl font-bold text-red-900">₦{totalExpenses.toFixed(2)}</p>
       </Link>
 
@@ -131,6 +178,7 @@ export default function ExpenseStatsCards() {
           ₦{balance.toFixed(2)}
         </p>
       </Link>
+      </div>
     </div>
   )
 }
