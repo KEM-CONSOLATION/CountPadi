@@ -13,7 +13,13 @@ import OrganizationLogo, {
 import NotificationCenter from './NotificationCenter'
 import BranchSelector from './BranchSelector'
 import UserTour from './UserTour'
-import { hasCompletedTour } from '@/lib/utils/cookies'
+import { hasCompletedTour, clearAllCookies } from '@/lib/utils/cookies'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { useBranchStore } from '@/lib/stores/branchStore'
+import { useOrganizationStore } from '@/lib/stores/organizationStore'
+import { useItemsStore } from '@/lib/stores/itemsStore'
+import { useSalesStore } from '@/lib/stores/salesStore'
+import { useStockStore } from '@/lib/stores/stockStore'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -82,11 +88,29 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     }
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    // Clear all local state immediately for instant UI feedback
     localStorage.removeItem('returnPath')
-    await supabase.auth.signOut()
+
+    // Clear Zustand stores synchronously (all have clear methods)
+    useAuthStore.getState().clear()
+    useBranchStore.getState().clear()
+    useOrganizationStore.getState().clear()
+    useItemsStore.getState().clear()
+    useSalesStore.getState().clear()
+    useStockStore.getState().clear()
+
+    // Clear all cookies
+    clearAllCookies()
+
+    // Redirect immediately without waiting for signOut
     router.push('/login')
     router.refresh()
+
+    // Sign out in background (fire and forget - don't await)
+    supabase.auth.signOut().catch(() => {
+      // Silently handle errors - user is already logged out locally
+    })
   }
 
   const isActive = (path: string) => pathname === path
