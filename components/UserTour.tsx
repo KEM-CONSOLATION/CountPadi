@@ -309,9 +309,6 @@ export default function UserTour({ user, run, onClose }: UserTourProps) {
         disableScrollParentFix={false}
         scrollOffset={20}
         scrollToFirstStep
-        floaterProps={{
-          disableAnimation: isMobile, // Disable animations on mobile for better performance
-        }}
         styles={{
           options: {
             primaryColor: '#4f46e5',

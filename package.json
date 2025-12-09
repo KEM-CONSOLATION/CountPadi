@@ -1,5 +1,5 @@
 {
-  "name": "restaurant-inventory",
+  "name": "zentro",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -21,7 +21,7 @@
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-joyride": "^2.9.3",
+    "react-joyride": "^3.0.0-7",
     "recharts": "^3.5.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.9"
