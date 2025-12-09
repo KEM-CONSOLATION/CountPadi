@@ -18,7 +18,8 @@ interface TransferRow {
 }
 
 export default function TransferForm() {
-  const { user, branchId, organizationId, isTenantAdmin, currentBranch, availableBranches } = useAuth()
+  const { user, branchId, organizationId, isTenantAdmin, currentBranch, availableBranches } =
+    useAuth()
   const [items, setItems] = useState<Item[]>([])
   const [toBranch, setToBranch] = useState('')
   const [itemId, setItemId] = useState('')
@@ -335,4 +336,3 @@ export default function TransferForm() {
     </div>
   )
 }
-

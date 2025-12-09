@@ -25,6 +25,7 @@ git push -u origin feature/multi-branch-support
 ### 3. Merge Strategy
 
 When ready to merge:
+
 ```bash
 # Switch back to main
 git checkout main
@@ -49,6 +50,7 @@ Create migration files that can be tested separately:
 ```
 
 **Advantages:**
+
 - Can test in staging/development Supabase project
 - Reversible (can create rollback migrations)
 - Version controlled
@@ -64,6 +66,7 @@ ALTER TABLE organizations ADD COLUMN multi_branch_enabled BOOLEAN DEFAULT false;
 ```
 
 Then in code:
+
 ```typescript
 if (organization.multi_branch_enabled) {
   // Use branch-aware queries
@@ -73,6 +76,7 @@ if (organization.multi_branch_enabled) {
 ```
 
 **Advantages:**
+
 - Can enable per organization
 - Gradual rollout
 - Easy to disable if issues
@@ -80,6 +84,7 @@ if (organization.multi_branch_enabled) {
 ### Option 3: Separate Database Schema
 
 Create new tables with `_v2` suffix:
+
 - `branches_v2`
 - `branch_inventory_v2`
 - etc.
@@ -109,6 +114,7 @@ ALTER TABLE sales ADD COLUMN branch_id UUID REFERENCES branches(id);
 ```
 
 **Why this is safe:**
+
 - Existing queries still work (branch_id is NULL)
 - No data loss
 - Can test new features without breaking old ones
@@ -139,15 +145,18 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ## Testing Strategy
 
 ### 1. Local Development
+
 - Test all changes locally
 - Use local Supabase instance or separate project
 
 ### 2. Staging Environment
+
 - Create separate Supabase project for staging
 - Test migrations there first
 - Verify all features work
 
 ### 3. Production Rollout
+
 - Apply migrations during low-traffic period
 - Have rollback plan ready
 - Monitor for issues
@@ -157,6 +166,7 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ## Protection Mechanisms
 
 ### 1. Database Backups
+
 ```bash
 # Before any migration
 # Use Supabase dashboard to create backup
@@ -164,16 +174,19 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ```
 
 ### 2. Migration Rollback Scripts
+
 ```sql
 -- supabase/migrations/rollback/20250109_rollback_branches.sql
 -- Script to undo changes if needed
 ```
 
 ### 3. Feature Flags
+
 - Use code-level feature flags
 - Can disable multi-branch without database changes
 
 ### 4. Gradual Rollout
+
 - Enable for one organization first
 - Test thoroughly
 - Then enable for all
@@ -239,6 +252,7 @@ git merge feature/multi-branch-support
 **Do the tour guide NOW** (before multi-branch):
 
 **Why:**
+
 - ✅ Tour guide is UI-only, no database changes
 - ✅ Won't conflict with multi-branch work
 - ✅ Improves UX immediately
@@ -246,14 +260,15 @@ git merge feature/multi-branch-support
 - ✅ Independent feature
 
 **Implementation:**
+
 - Use a library like `react-joyride` or `intro.js`
 - No database changes needed
 - Can be feature-flagged
 - Easy to update later
 
 **Timeline:**
+
 1. Now: Implement tour guide (1-2 days)
 2. Then: Multi-branch feature (2-3 weeks)
 
 This way users get immediate value while you work on multi-branch.
-

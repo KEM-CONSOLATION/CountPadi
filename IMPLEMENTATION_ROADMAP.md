@@ -5,6 +5,7 @@
 ### ✅ Phase 1: Tour Guide (DO THIS FIRST - 1-2 days)
 
 **Why Now:**
+
 - ✅ **No database changes** - Pure UI feature
 - ✅ **No risk** - Can't break existing features
 - ✅ **Quick implementation** - 1-2 days
@@ -12,12 +13,14 @@
 - ✅ **Independent** - Won't conflict with multi-branch work
 
 **Implementation:**
+
 - Use `react-joyride` library
 - Add tour markers to key components
 - Track completion in cookies
 - Auto-start for new users
 
 **Files to create:**
+
 - `components/UserTour.tsx`
 - Update existing components with `data-tour` attributes
 
@@ -26,16 +29,19 @@
 ### 🔄 Phase 2: Multi-Branch Feature (2-3 weeks)
 
 **Work in feature branch:**
+
 ```bash
 git checkout -b feature/multi-branch-support
 ```
 
 **Database Strategy:**
+
 1. **Create migration files** (just SQL code, not run)
 2. **Test in separate Supabase project**
 3. **Only apply to production when ready**
 
 **Key Safety Points:**
+
 - Migration files are just code until you run them
 - Test in separate database first
 - Use nullable columns initially
@@ -48,6 +54,7 @@ git checkout -b feature/multi-branch-support
 ### How Migrations Work
 
 1. **Migration File = Just Code**
+
    ```sql
    -- supabase/migrations/20250109_add_branches.sql
    -- This is just a file, doesn't affect database
@@ -152,6 +159,7 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ```
 
 **This is safe because:**
+
 - Step 1 doesn't break existing queries (column is nullable)
 - Step 2 can be tested first
 - Step 3 only happens after data is migrated
@@ -161,18 +169,21 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ## Recommended Timeline
 
 ### Week 1: Tour Guide
+
 - Day 1-2: Implement tour guide
 - No database changes
 - Deploy to production
 - Users get immediate value
 
 ### Week 2-4: Multi-Branch (Feature Branch)
+
 - Week 2: Database migrations (test in separate project)
 - Week 3: Backend API updates
 - Week 4: Frontend components
 - Test thoroughly before merging
 
 ### Week 5: Merge & Deploy
+
 - Merge feature branch
 - Apply migrations to production
 - Monitor closely
@@ -183,6 +194,7 @@ ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
 ## Quick Start Commands
 
 ### Create Feature Branch
+
 ```bash
 # Commit current work
 git add .
@@ -196,6 +208,7 @@ git push -u origin feature/multi-branch-support
 ```
 
 ### Work on Feature
+
 ```bash
 # Make sure you're on feature branch
 git checkout feature/multi-branch-support
@@ -205,6 +218,7 @@ git checkout feature/multi-branch-support
 ```
 
 ### Switch Back to Main
+
 ```bash
 # Go back to stable main branch
 git checkout main
@@ -218,18 +232,21 @@ git checkout main
 ## Summary
 
 ### Tour Guide: DO NOW ✅
+
 - **Risk**: None (UI only)
 - **Time**: 1-2 days
 - **Value**: Immediate
 - **Conflict**: None with multi-branch
 
 ### Multi-Branch: DO IN FEATURE BRANCH 🔄
+
 - **Risk**: Medium (but manageable)
 - **Time**: 2-3 weeks
 - **Database**: Safe with proper migration strategy
 - **Branch**: Work in `feature/multi-branch-support`
 
 ### Database: SAFE ✅
+
 - Migration files are just code
 - Test in separate project first
 - Only apply when ready
@@ -247,7 +264,7 @@ git checkout main
 6. **Merge when ready**
 
 Your production database is safe as long as you:
+
 - ✅ Test migrations in separate project first
 - ✅ Only apply to production when ready
 - ✅ Have backup and rollback plan
-

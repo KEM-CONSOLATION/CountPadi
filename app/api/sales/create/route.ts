@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     const organization_id = profile.organization_id
-    
+
     // Determine effective branch_id
     // Tenant admin (admin without fixed branch_id): can specify branch_id in request
     // Branch manager/staff: use fixed branch_id from profile
@@ -87,7 +87,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify branch_id matches if effective_branch_id is set
-      if (effective_branch_id && restocking.branch_id && restocking.branch_id !== effective_branch_id) {
+      if (
+        effective_branch_id &&
+        restocking.branch_id &&
+        restocking.branch_id !== effective_branch_id
+      ) {
         return NextResponse.json(
           { error: 'Restocking batch does not belong to your branch' },
           { status: 403 }
@@ -130,7 +134,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify branch_id matches if effective_branch_id is set
-      if (effective_branch_id && openingStock.branch_id && openingStock.branch_id !== effective_branch_id) {
+      if (
+        effective_branch_id &&
+        openingStock.branch_id &&
+        openingStock.branch_id !== effective_branch_id
+      ) {
         return NextResponse.json(
           { error: 'Opening stock batch does not belong to your branch' },
           { status: 403 }

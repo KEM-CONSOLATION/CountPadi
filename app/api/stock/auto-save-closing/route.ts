@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     const organizationId = profile?.organization_id || null
-    const branchId = profile?.role === 'admin' && !profile?.branch_id ? null : profile?.branch_id || null
+    const branchId =
+      profile?.role === 'admin' && !profile?.branch_id ? null : profile?.branch_id || null
 
     // Reject future dates
     const today = new Date().toISOString().split('T')[0]

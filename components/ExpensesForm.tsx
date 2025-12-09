@@ -68,10 +68,7 @@ export default function ExpensesForm() {
 
   const fetchPreviousDaySales = async () => {
     const previousDate = format(subDays(new Date(startDate), 1), 'yyyy-MM-dd')
-    let salesQuery = supabase
-      .from('sales')
-      .select('total_price')
-      .eq('date', previousDate)
+    let salesQuery = supabase.from('sales').select('total_price').eq('date', previousDate)
     if (organizationId) {
       salesQuery = salesQuery.eq('organization_id', organizationId)
     }

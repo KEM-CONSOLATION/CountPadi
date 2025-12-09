@@ -31,4 +31,3 @@ export default async function TransfersPage() {
     </DashboardLayout>
   )
 }
-

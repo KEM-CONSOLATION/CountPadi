@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useBranchStore } from '@/lib/stores/branchStore'
 import { Branch } from '@/types/database'
+import { supabase } from '@/lib/supabase/client'
 
 export default function BranchManagement() {
-  const { organizationId, isTenantAdmin } = useAuth()
+  const { organizationId, isTenantAdmin, isSuperAdmin } = useAuth()
   const { availableBranches, fetchBranches } = useBranchStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -18,12 +19,93 @@ export default function BranchManagement() {
     address: '',
     phone: '',
   })
+  const [allBranches, setAllBranches] = useState<
+    (Branch & { organization?: { name: string } | null })[]
+  >([])
 
   useEffect(() => {
     if (organizationId) {
       fetchBranches(organizationId)
     }
   }, [organizationId, fetchBranches])
+
+  // Superadmin: fetch all branches (read-only)
+  useEffect(() => {
+    const loadAll = async () => {
+      if (!isSuperAdmin) return
+      setLoading(true)
+      setError(null)
+      try {
+        const { data, error } = await supabase
+          .from('branches')
+          .select('*, organization:organizations(name)')
+          .order('organization_id', { ascending: true })
+          .order('name', { ascending: true })
+        if (error) throw error
+        setAllBranches(data || [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to fetch branches'
+        setError(message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadAll()
+  }, [isSuperAdmin])
+
+  // Superadmin read-only view
+  if (isSuperAdmin) {
+    return (
+      <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-semibold text-gray-900">Branches (All Organizations)</h2>
+          {loading && (
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+          )}
+        </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded">
+            {error}
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Org
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Branch
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Created
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {allBranches.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                    No branches found
+                  </td>
+                </tr>
+              )}
+              {allBranches.map(b => (
+                <tr key={b.id}>
+                  <td className="px-4 py-3 text-sm text-gray-700">{b.organization?.name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{b.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {new Date(b.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
 
   // Only tenant admins can manage branches
   if (!isTenantAdmin) {
@@ -84,8 +166,9 @@ export default function BranchManagement() {
       if (organizationId) {
         await fetchBranches(organizationId)
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save branch')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save branch'
+      setError(message)
     } finally {
       setLoading(false)
       setTimeout(() => {
@@ -135,8 +218,9 @@ export default function BranchManagement() {
       if (organizationId) {
         await fetchBranches(organizationId)
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete branch')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete branch'
+      setError(message)
     } finally {
       setLoading(false)
       setTimeout(() => {
@@ -167,9 +251,7 @@ export default function BranchManagement() {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded">
-          {error}
-        </div>
+        <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded">{error}</div>
       )}
 
       {success && (
@@ -298,4 +380,3 @@ export default function BranchManagement() {
     </div>
   )
 }
-

@@ -357,10 +357,7 @@ export default function UserManagement() {
 
             {(newUser.role === 'staff' || newUser.role === 'branch_manager') && (
               <div>
-                <label
-                  htmlFor="branch_id"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
+                <label htmlFor="branch_id" className="block text-sm font-medium text-gray-700 mb-2">
                   Branch <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -392,7 +389,13 @@ export default function UserManagement() {
                 type="button"
                 onClick={() => {
                   setShowCreateForm(false)
-                  setNewUser({ email: '', password: '', fullName: '', role: 'staff', branch_id: '' })
+                  setNewUser({
+                    email: '',
+                    password: '',
+                    fullName: '',
+                    role: 'staff',
+                    branch_id: '',
+                  })
                   setError(null)
                 }}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 cursor-pointer"

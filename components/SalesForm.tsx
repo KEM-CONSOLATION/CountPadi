@@ -321,7 +321,15 @@ export default function SalesForm() {
         text: `Failed to fetch opening stock: ${errorMessage}. Please try again.`,
       })
     }
-  }, [date, isPastDate, message, organizationId, branchId, fetchOpeningStockFromStore, openingStocks.length])
+  }, [
+    date,
+    isPastDate,
+    message,
+    organizationId,
+    branchId,
+    fetchOpeningStockFromStore,
+    openingStocks.length,
+  ])
 
   const fetchRestockingCallback = useCallback(async () => {
     try {

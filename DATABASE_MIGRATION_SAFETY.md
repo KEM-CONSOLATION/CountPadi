@@ -5,6 +5,7 @@
 ### Strategy 1: Supabase Migration Files (RECOMMENDED)
 
 Supabase migrations are **version-controlled SQL files** that can be:
+
 - Tested in separate projects
 - Applied when ready
 - Rolled back if needed
@@ -39,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_branches_organization ON branches(organization_id
 #### Step 3: Apply to Production When Ready
 
 Only when you're confident:
+
 1. Run migration in production Supabase dashboard
 2. Or use Supabase CLI: `supabase db push`
 
@@ -58,6 +60,7 @@ export const FEATURES = {
 ```
 
 Then in code:
+
 ```typescript
 if (FEATURES.MULTI_BRANCH) {
   // Use branch-aware queries
@@ -67,6 +70,7 @@ if (FEATURES.MULTI_BRANCH) {
 ```
 
 **Advantages:**
+
 - Can enable/disable without code changes
 - Gradual rollout
 - Easy to disable if issues
@@ -86,6 +90,7 @@ ALTER TABLE items ADD COLUMN branch_id UUID REFERENCES branches(id);
 ```
 
 Then later, after migration:
+
 ```sql
 -- Make required after all data is migrated
 ALTER TABLE items ALTER COLUMN branch_id SET NOT NULL;
@@ -109,13 +114,15 @@ CREATE TABLE branch_sales (
 ```
 
 Then migrate data when ready:
+
 ```sql
-INSERT INTO branch_sales 
-SELECT *, branch_id FROM sales 
+INSERT INTO branch_sales
+SELECT *, branch_id FROM sales
 WHERE branch_id IS NOT NULL;
 ```
 
 **Advantages:**
+
 - Zero risk to existing data
 - Can test fully before migration
 - Easy rollback (just don't use new tables)
@@ -217,10 +224,10 @@ DROP TABLE IF EXISTS branches CASCADE;
 ## Summary
 
 **Your database is SAFE if you:**
+
 1. ✅ Create migration files (just code, not run)
 2. ✅ Test in separate Supabase project
 3. ✅ Only apply to production when ready
 4. ✅ Have backup and rollback plan
 
 **Migration files are just SQL code** - they don't affect your database until you explicitly run them in Supabase dashboard or via CLI.
-

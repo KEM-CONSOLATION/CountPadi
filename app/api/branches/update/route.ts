@@ -47,7 +47,10 @@ export async function PUT(request: NextRequest) {
 
     // Superadmins can update any branch, regular admins only their organization's branches
     if (profile.role !== 'superadmin' && branch.organization_id !== profile.organization_id) {
-      return NextResponse.json({ error: 'Forbidden: Cannot update branch from another organization' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden: Cannot update branch from another organization' },
+        { status: 403 }
+      )
     }
 
     // If name is being updated, check for duplicates
@@ -94,4 +97,3 @@ export async function PUT(request: NextRequest) {
     )
   }
 }
-

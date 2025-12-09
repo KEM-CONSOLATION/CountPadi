@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (from_branch_id === to_branch_id) {
-      return NextResponse.json({ error: 'Source and destination branches cannot be the same' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Source and destination branches cannot be the same' },
+        { status: 400 }
+      )
     }
 
     const qty = parseFloat(quantity)
@@ -31,7 +34,10 @@ export async function POST(request: NextRequest) {
     const transferDate = date.includes('T') ? date.split('T')[0] : date
     const today = new Date().toISOString().split('T')[0]
     if (transferDate > today) {
-      return NextResponse.json({ error: 'Cannot schedule transfers in the future' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Cannot schedule transfers in the future' },
+        { status: 400 }
+      )
     }
 
     // Get user profile
@@ -47,7 +53,10 @@ export async function POST(request: NextRequest) {
 
     // Superadmin should not operate org transfers
     if (profile.role === 'superadmin') {
-      return NextResponse.json({ error: 'Superadmins cannot perform branch transfers' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Superadmins cannot perform branch transfers' },
+        { status: 403 }
+      )
     }
 
     const organizationId = profile.organization_id
@@ -57,7 +66,10 @@ export async function POST(request: NextRequest) {
 
     // Branch permission: tenant admin (branch_id null) can transfer any; otherwise user branch must match source
     if (profile.branch_id && profile.branch_id !== from_branch_id) {
-      return NextResponse.json({ error: 'You can only transfer stock from your own branch' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'You can only transfer stock from your own branch' },
+        { status: 403 }
+      )
     }
 
     // Ensure branches belong to the same organization
@@ -66,8 +78,15 @@ export async function POST(request: NextRequest) {
       .select('id, organization_id')
       .in('id', [from_branch_id, to_branch_id])
 
-    if (!branches || branches.length !== 2 || branches.some(b => b.organization_id !== organizationId)) {
-      return NextResponse.json({ error: 'Branches must belong to your organization' }, { status: 400 })
+    if (
+      !branches ||
+      branches.length !== 2 ||
+      branches.some(b => b.organization_id !== organizationId)
+    ) {
+      return NextResponse.json(
+        { error: 'Branches must belong to your organization' },
+        { status: 400 }
+      )
     }
 
     // Calculate available stock in source branch for that date
@@ -184,4 +203,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
-

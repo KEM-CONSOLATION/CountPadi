@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Helper functions to add filters
-    const addOrgFilter = (query: any) => (organizationId ? query.eq('organization_id', organizationId) : query)
+    const addOrgFilter = (query: any) =>
+      organizationId ? query.eq('organization_id', organizationId) : query
     const addBranchFilter = (query: any) =>
       branchId !== null && branchId !== undefined ? query.eq('branch_id', branchId) : query
 
@@ -198,10 +199,16 @@ export async function GET(request: NextRequest) {
 
       // Transfers
       const itemOutgoing = outgoingTransfers?.filter(t => t.item_id === item.id) || []
-      const totalOutgoing = itemOutgoing.reduce((sum, t) => sum + parseFloat(t.quantity.toString()), 0)
+      const totalOutgoing = itemOutgoing.reduce(
+        (sum, t) => sum + parseFloat(t.quantity.toString()),
+        0
+      )
 
       const itemIncoming = incomingTransfers?.filter(t => t.item_id === item.id) || []
-      const totalIncoming = itemIncoming.reduce((sum, t) => sum + parseFloat(t.quantity.toString()), 0)
+      const totalIncoming = itemIncoming.reduce(
+        (sum, t) => sum + parseFloat(t.quantity.toString()),
+        0
+      )
 
       // Calculate total waste/spoilage for this date
       const itemWasteSpoilage = dateWasteSpoilage?.filter(w => w.item_id === item.id) || []
@@ -217,7 +224,12 @@ export async function GET(request: NextRequest) {
       // Always calculate closing stock from the formula for accuracy
       const closingStock = Math.max(
         0,
-        openingStock + totalRestocking + totalIncoming - totalSales - totalWasteSpoilage - totalOutgoing
+        openingStock +
+          totalRestocking +
+          totalIncoming -
+          totalSales -
+          totalWasteSpoilage -
+          totalOutgoing
       )
 
       return {

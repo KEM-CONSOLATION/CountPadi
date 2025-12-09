@@ -42,7 +42,9 @@ export async function PUT(request: NextRequest) {
 
     const organizationId = profile?.organization_id || null
     const effectiveBranchId =
-      profile?.role === 'admin' && !profile?.branch_id ? branch_id || null : profile?.branch_id || null
+      profile?.role === 'admin' && !profile?.branch_id
+        ? branch_id || null
+        : profile?.branch_id || null
 
     // Reject future dates
     const today = new Date().toISOString().split('T')[0]
@@ -54,7 +56,8 @@ export async function PUT(request: NextRequest) {
     const isPastDate = date < today
 
     // Helper function to add organization filter
-    const addOrgFilter = (query: any) => (organizationId ? query.eq('organization_id', organizationId) : query)
+    const addOrgFilter = (query: any) =>
+      organizationId ? query.eq('organization_id', organizationId) : query
     const addBranchFilter = (query: any) =>
       effectiveBranchId !== null && effectiveBranchId !== undefined
         ? query.eq('branch_id', effectiveBranchId)

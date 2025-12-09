@@ -39,6 +39,7 @@
 ### Option 1: Simple Approach (RECOMMENDED)
 
 **Profile Table:**
+
 ```sql
 profiles (
   id,
@@ -52,17 +53,20 @@ profiles (
 ```
 
 **How It Works:**
+
 - **Tenant Admin**: `branch_id = NULL`, can switch branches (uses `default_branch_id` from cookie)
 - **Branch Manager**: `branch_id = their_branch_id` (fixed, can't switch)
 - **Staff**: `branch_id = their_branch_id` (fixed, can't switch)
 
 **Advantages:**
+
 - ✅ Simple, one column
 - ✅ Easy to query
 - ✅ Clear ownership
 - ✅ No junction table needed
 
 **Onboarding Flow:**
+
 1. Create organization → Auto-create "Main Branch"
 2. Create users → Assign `branch_id` when creating
 3. Create more branches → Assign users to branches
@@ -73,6 +77,7 @@ profiles (
 ### Option 2: Flexible Approach (If Users Need Multiple Branches)
 
 **Junction Table:**
+
 ```sql
 user_branch_roles (
   user_id,
@@ -84,6 +89,7 @@ user_branch_roles (
 ```
 
 **Profile Table:**
+
 ```sql
 profiles (
   id,
@@ -95,15 +101,18 @@ profiles (
 ```
 
 **How It Works:**
+
 - User can belong to multiple branches
 - `primary_branch_id` is their default
 - Junction table tracks all branch assignments
 
 **Advantages:**
+
 - ✅ Flexible (users can work at multiple branches)
 - ✅ Supports complex scenarios
 
 **Disadvantages:**
+
 - ❌ More complex queries
 - ❌ More code to maintain
 - ❌ Probably overkill for most use cases
@@ -143,19 +152,19 @@ ALTER TABLE expenses ADD COLUMN branch_id UUID REFERENCES branches(id);
 ```typescript
 // Tenant Admin
 if (role === 'tenant_admin') {
-  branch_id = null  // Can switch branches
+  branch_id = null // Can switch branches
   currentBranch = getFromCookie() || default_branch_id
 }
 
 // Branch Manager
 if (role === 'branch_manager') {
-  branch_id = profile.branch_id  // Fixed, can't switch
+  branch_id = profile.branch_id // Fixed, can't switch
   currentBranch = branch_id
 }
 
 // Staff
 if (role === 'staff') {
-  branch_id = profile.branch_id  // Fixed, can't switch
+  branch_id = profile.branch_id // Fixed, can't switch
   currentBranch = branch_id
 }
 ```
@@ -165,6 +174,7 @@ if (role === 'staff') {
 ## 📋 Onboarding Flow Recommendation
 
 ### Step 1: Organization Created
+
 ```sql
 -- Auto-create "Main Branch"
 INSERT INTO branches (organization_id, name)
@@ -172,6 +182,7 @@ VALUES (new_org_id, 'Main Branch');
 ```
 
 ### Step 2: Create Users
+
 ```typescript
 // When creating user, specify branch
 POST /api/users/create
@@ -184,6 +195,7 @@ POST /api/users/create
 ```
 
 ### Step 3: Create More Branches
+
 ```typescript
 POST /api/branches/create
 {
@@ -194,6 +206,7 @@ POST /api/branches/create
 ```
 
 ### Step 4: Assign Users to Branches
+
 ```typescript
 // Update user's branch
 PUT /api/users/update-branch
@@ -208,6 +221,7 @@ PUT /api/users/update-branch
 ## 🔄 Query Pattern (Same as Organization)
 
 ### Current (Organization):
+
 ```typescript
 let query = supabase.from('sales')
 if (organizationId) {
@@ -216,6 +230,7 @@ if (organizationId) {
 ```
 
 ### New (Organization + Branch):
+
 ```typescript
 let query = supabase.from('sales')
 if (organizationId) {
@@ -235,12 +250,14 @@ if (branchId) {
 ### Proceed with Multi-Branch: **YES** ✅
 
 **Why:**
+
 1. You've done this before (organization)
 2. Same pattern, just one more filter
 3. Foundation is ready (Zustand, cookies)
 4. You know the pitfalls to avoid
 
 **Recommended Approach:**
+
 1. **Use Simple Structure** (Option 1)
    - `branch_id` on profile
    - NULL for tenant admin (can switch)
@@ -260,12 +277,14 @@ if (branchId) {
 ### Risk Level: **MEDIUM** (But Manageable)
 
 **Lower risk than organization migration because:**
+
 - ✅ You have experience
 - ✅ Same patterns
 - ✅ Better foundation
 - ✅ Can test in separate project
 
 **Higher risk than organization because:**
+
 - ⚠️ More tables to update
 - ⚠️ More complex queries (org + branch)
 - ⚠️ Stock calculations per branch
@@ -309,4 +328,3 @@ if (branchId) {
 5. **Test in separate project first** - same as you did with organization
 
 **Bottom line: Go for it! You've got this.** 🎉
-

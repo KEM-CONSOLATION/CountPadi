@@ -34,12 +34,13 @@ interface Profile {
   id: string
   role: 'tenant_admin' | 'branch_manager' | 'staff'
   organization_id: string
-  branch_id: string | null        // NULL for tenant_admin
+  branch_id: string | null // NULL for tenant_admin
   default_branch_id: string | null // For tenant_admin (selected branch)
 }
 ```
 
 **Logic:**
+
 - **Tenant Admin**: `branch_id = NULL`, uses `default_branch_id` from cookie/store
 - **Branch Manager**: `branch_id = their_branch_id` (fixed)
 - **Staff**: `branch_id = their_branch_id` (fixed)
@@ -52,9 +53,9 @@ interface Profile {
 
 ```typescript
 // Auto-create "Main Branch" when organization is created
-POST /api/organizations/create
+POST / api / organizations / create
 {
-  name: "La Cuisine Restaurant"
+  name: 'La Cuisine Restaurant'
 }
 
 // Backend automatically:
@@ -137,9 +138,8 @@ const { currentBranch, organizationId } = useAuth()
 const branchId = currentBranch?.id || null
 
 // Query with both filters
-let query = supabase.from('sales')
-  .eq('organization_id', organizationId)
-  
+let query = supabase.from('sales').eq('organization_id', organizationId)
+
 if (branchId) {
   query = query.eq('branch_id', branchId)
 } else {
@@ -154,9 +154,7 @@ if (branchId) {
 const { branchId, organizationId } = useAuth()
 
 // Always filter by their branch
-let query = supabase.from('sales')
-  .eq('organization_id', organizationId)
-  .eq('branch_id', branchId)  // Always required
+let query = supabase.from('sales').eq('organization_id', organizationId).eq('branch_id', branchId) // Always required
 ```
 
 ---
@@ -263,14 +261,14 @@ FROM organizations;
 ```sql
 -- Assign all existing data to default branch
 UPDATE profiles SET branch_id = (
-  SELECT id FROM branches 
-  WHERE organization_id = profiles.organization_id 
+  SELECT id FROM branches
+  WHERE organization_id = profiles.organization_id
   LIMIT 1
 ) WHERE branch_id IS NULL;
 
 UPDATE items SET branch_id = (
-  SELECT id FROM branches 
-  WHERE organization_id = items.organization_id 
+  SELECT id FROM branches
+  WHERE organization_id = items.organization_id
   LIMIT 1
 ) WHERE branch_id IS NULL;
 
@@ -325,15 +323,16 @@ if (existing) {
 ## Summary
 
 **Recommended Structure:**
+
 - ✅ Simple: One `branch_id` column on profile
 - ✅ Clear: NULL = tenant admin (can switch), value = fixed branch
 - ✅ Easy: Same query pattern as organization
 - ✅ Flexible: Can add junction table later if needed
 
 **Onboarding:**
+
 1. Create org → Auto-create "Main Branch"
 2. Create users → Assign branch_id
 3. Create more branches → Assign users
 
 **This is the cleanest, simplest approach!** 🎯
-

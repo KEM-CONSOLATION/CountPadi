@@ -133,4 +133,3 @@ export function clearAllCookies(): void {
     removeCookie(key)
   })
 }
-

@@ -6,7 +6,8 @@ import { useEffect } from 'react'
 
 export default function BranchSelector() {
   const { isTenantAdmin, organizationId, profile } = useAuth()
-  const { currentBranch, availableBranches, setCurrentBranch, fetchBranches, loading } = useBranchStore()
+  const { currentBranch, availableBranches, setCurrentBranch, fetchBranches, loading } =
+    useBranchStore()
 
   useEffect(() => {
     if (isTenantAdmin && organizationId) {
@@ -35,13 +36,16 @@ export default function BranchSelector() {
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor="branch-selector" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+      <label
+        htmlFor="branch-selector"
+        className="text-sm font-medium text-gray-700 whitespace-nowrap"
+      >
         Branch:
       </label>
       <select
         id="branch-selector"
         value={currentBranch?.id || ''}
-        onChange={(e) => {
+        onChange={e => {
           const branch = availableBranches.find(b => b.id === e.target.value)
           setCurrentBranch(branch || null)
         }}
@@ -61,4 +65,3 @@ export default function BranchSelector() {
     </div>
   )
 }
-

@@ -381,7 +381,9 @@ export async function cascadeUpdateFromDate(
       .from('opening_stock')
       .select('item_id, quantity, cost_price, selling_price')
       .eq('date', nextDateStr)
-    existingNextOpeningStockWithPricesQuery = addOrgBranchFilter(existingNextOpeningStockWithPricesQuery)
+    existingNextOpeningStockWithPricesQuery = addOrgBranchFilter(
+      existingNextOpeningStockWithPricesQuery
+    )
     const { data: existingNextOpeningStockWithPrices } =
       await existingNextOpeningStockWithPricesQuery
 

@@ -3,6 +3,7 @@
 ## Overview
 
 We've implemented `js-cookie` for reliable cookie management across the application. Cookies are used for:
+
 - Branch selection persistence
 - User preferences
 - Feature flags
@@ -35,10 +36,10 @@ removeCookie('my_cookie')
 ### Branch Management
 
 ```typescript
-import { 
-  getSelectedBranchId, 
-  setSelectedBranchId, 
-  clearSelectedBranchId 
+import {
+  getSelectedBranchId,
+  setSelectedBranchId,
+  clearSelectedBranchId,
 } from '@/lib/utils/cookies'
 
 // Get selected branch ID
@@ -63,18 +64,14 @@ const prefs = getUserPreferences() // Returns Record<string, unknown> | null
 setUserPreferences({
   theme: 'dark',
   language: 'en',
-  notifications: true
+  notifications: true,
 })
 ```
 
 ### Feature Flags
 
 ```typescript
-import { 
-  getFeatureFlags, 
-  setFeatureFlags, 
-  isFeatureEnabled 
-} from '@/lib/utils/cookies'
+import { getFeatureFlags, setFeatureFlags, isFeatureEnabled } from '@/lib/utils/cookies'
 
 // Check if feature is enabled
 if (isFeatureEnabled('multi_branch')) {
@@ -84,7 +81,7 @@ if (isFeatureEnabled('multi_branch')) {
 // Set feature flags
 setFeatureFlags({
   multi_branch: true,
-  pos_mode: false
+  pos_mode: false,
 })
 ```
 
@@ -96,13 +93,8 @@ The branch store automatically syncs with cookies:
 import { useBranchStore } from '@/lib/stores/branchStore'
 
 function MyComponent() {
-  const { 
-    currentBranch, 
-    availableBranches, 
-    setCurrentBranch,
-    fetchBranches 
-  } = useBranchStore()
-  
+  const { currentBranch, availableBranches, setCurrentBranch, fetchBranches } = useBranchStore()
+
   // Branch is automatically saved to cookie when set
   const handleBranchChange = (branch: Branch) => {
     setCurrentBranch(branch) // Also saves to cookie
@@ -118,15 +110,15 @@ The `useAuth` hook now includes branch functionality:
 import { useAuth } from '@/lib/hooks/useAuth'
 
 function MyComponent() {
-  const { 
+  const {
     currentBranch,
     branchId,
     availableBranches,
     hasMultipleBranches,
     setCurrentBranch,
-    fetchBranches 
+    fetchBranches,
   } = useAuth()
-  
+
   // branchId is a convenience property
   const selectedBranchId = branchId // currentBranch?.id || null
 }
@@ -135,6 +127,7 @@ function MyComponent() {
 ## Cookie Configuration
 
 Cookies are configured with:
+
 - **Expires**: 365 days (1 year)
 - **SameSite**: Strict (CSRF protection)
 - **Secure**: Enabled in production
@@ -158,10 +151,10 @@ All cookie keys are centralized in `COOKIE_KEYS`:
 ```typescript
 import { COOKIE_KEYS } from '@/lib/utils/cookies'
 
-COOKIE_KEYS.SELECTED_BRANCH      // 'selected_branch_id'
-COOKIE_KEYS.USER_PREFERENCES     // 'user_preferences'
-COOKIE_KEYS.FEATURE_FLAGS        // 'feature_flags'
-COOKIE_KEYS.LAST_ORGANIZATION    // 'last_organization_id'
+COOKIE_KEYS.SELECTED_BRANCH // 'selected_branch_id'
+COOKIE_KEYS.USER_PREFERENCES // 'user_preferences'
+COOKIE_KEYS.FEATURE_FLAGS // 'feature_flags'
+COOKIE_KEYS.LAST_ORGANIZATION // 'last_organization_id'
 ```
 
 ## Example: Branch Selector Component
@@ -172,19 +165,19 @@ COOKIE_KEYS.LAST_ORGANIZATION    // 'last_organization_id'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function BranchSelector() {
-  const { 
-    currentBranch, 
-    availableBranches, 
+  const {
+    currentBranch,
+    availableBranches,
     setCurrentBranch,
     hasMultipleBranches,
-    isSuperAdmin 
+    isSuperAdmin
   } = useAuth()
-  
+
   // Only show for tenant admins with multiple branches
   if (!isSuperAdmin || !hasMultipleBranches) {
     return null
   }
-  
+
   return (
     <select
       value={currentBranch?.id || ''}
@@ -230,8 +223,8 @@ export async function GET() {
 ## Migration Notes
 
 When implementing multi-branch:
+
 - Branch selection is automatically persisted via cookies
 - Users' branch preference survives page refreshes
 - Branch context is available throughout the app via `useAuth()`
 - No need to manually manage branch state in components
-

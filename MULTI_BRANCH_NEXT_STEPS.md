@@ -26,6 +26,7 @@
 Follow the pattern used in `app/api/sales/create/route.ts`:
 
 **Files to update:**
+
 - `app/api/sales/update/route.ts`
 - `app/api/items/create/route.ts`
 - `app/api/items/update/route.ts`
@@ -34,6 +35,7 @@ Follow the pattern used in `app/api/sales/create/route.ts`:
 - `app/api/expenses/*/route.ts` (all expense APIs)
 
 **Pattern to follow:**
+
 ```typescript
 // 1. Get profile with branch_id
 const { data: profile } = await supabase
@@ -68,12 +70,10 @@ if (effective_branch_id) {
 Update these stores to accept and use branch_id:
 
 **`lib/stores/itemsStore.ts`:**
+
 ```typescript
 fetchItems: async (organizationId: string, branchId?: string | null) => {
-  let query = supabase
-    .from('items')
-    .select('*')
-    .eq('organization_id', organizationId)
+  let query = supabase.from('items').select('*').eq('organization_id', organizationId)
   if (branchId) {
     query = query.eq('branch_id', branchId)
   }
@@ -82,6 +82,7 @@ fetchItems: async (organizationId: string, branchId?: string | null) => {
 ```
 
 **`lib/stores/salesStore.ts`:**
+
 ```typescript
 fetchSales: async (date: string, organizationId: string, branchId?: string | null) => {
   let query = supabase
@@ -97,6 +98,7 @@ fetchSales: async (date: string, organizationId: string, branchId?: string | nul
 ```
 
 **`lib/stores/stockStore.ts`:**
+
 - Update `fetchOpeningStock` to accept branchId
 - Update `fetchClosingStock` to accept branchId
 - Update `fetchRestocking` to accept branchId
@@ -104,6 +106,7 @@ fetchSales: async (date: string, organizationId: string, branchId?: string | nul
 ### 4. Create Frontend Components
 
 **`components/BranchSelector.tsx`** (NEW):
+
 ```typescript
 'use client'
 
@@ -145,6 +148,7 @@ export default function BranchSelector() {
 ```
 
 **`components/BranchManagement.tsx`** (NEW):
+
 - CRUD interface for branches
 - List, create, update, delete branches
 - Show branch details and users
@@ -152,32 +156,39 @@ export default function BranchSelector() {
 ### 5. Update Existing Components
 
 **`components/DashboardLayout.tsx`:**
+
 - Add `<BranchSelector />` in header (only for tenant admin)
 
 **`components/UserManagement.tsx`:**
+
 - Add branch selection dropdown when creating users
 - Required for staff, optional for admin
 
 **`components/SalesForm.tsx`:**
+
 - Use `branchId` from `useAuth()` hook
 - Pass `branchId` to API calls
 - Update Zustand store calls to include branchId
 
 **`components/RestockingForm.tsx`:**
+
 - Use `branchId` from `useAuth()` hook
 - Pass `branchId` to API calls
 
 **`components/ItemManagement.tsx`:**
+
 - Use `branchId` from `useAuth()` hook
 - Filter items by branch
 
 **All other components:**
+
 - Update to use `branchId` from `useAuth()`
 - Pass `branchId` to all data fetching
 
 ### 6. Update Stock Calculation Logic
 
 **`lib/stock-cascade.ts`:**
+
 - Add `branchId` parameter to all functions
 - Filter all queries by `branchId`
 - Update `recalculateClosingStock` and `cascadeUpdateFromDate`
@@ -188,6 +199,7 @@ Create new migration file:
 **`supabase/migrations/20250109_004_update_rls_for_branches.sql`**
 
 Update RLS policies to include branch_id checks:
+
 ```sql
 -- Example: Update sales policy
 DROP POLICY IF EXISTS "Users can view sales in their organization" ON sales;
@@ -238,4 +250,3 @@ After implementation:
 3. **Update one component at a time** (start with SalesForm)
 4. **Test thoroughly** before moving to next component
 5. **Update remaining APIs** following the sales API pattern
-

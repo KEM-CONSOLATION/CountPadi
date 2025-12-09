@@ -3,16 +3,19 @@
 ## ✅ Completed
 
 ### Database Migrations
+
 - ✅ `supabase/migrations/20250109_001_add_branches_table.sql` - Creates branches table and adds branch_id columns
 - ✅ `supabase/migrations/20250109_002_create_default_branches.sql` - Auto-creates "Main Branch" for each organization
 - ✅ `supabase/migrations/20250109_003_migrate_existing_data.sql` - Migrates existing data to default branches
 
 ### TypeScript Types
+
 - ✅ Added `Branch` interface to `types/database.ts`
 - ✅ Updated `Profile` interface: added `branch_id` and `default_branch_id`
 - ✅ Updated all interfaces: `Item`, `OpeningStock`, `ClosingStock`, `Sale`, `Expense`, `Restocking`, `WasteSpoilage` - all now include `branch_id` and `branch?`
 
 ### API Routes
+
 - ✅ `app/api/branches/create/route.ts` - Create branch
 - ✅ `app/api/branches/list/route.ts` - List branches
 - ✅ `app/api/branches/update/route.ts` - Update branch
@@ -22,9 +25,11 @@
 - ✅ `app/api/organizations/create/route.ts` - Updated to auto-create "Main Branch"
 
 ### Zustand Stores
+
 - ✅ `lib/stores/branchStore.ts` - Updated to use Branch type from database.ts
 
 ### Hooks
+
 - ✅ `lib/hooks/useAuth.ts` - Updated with branch logic:
   - `effectiveBranchId` - Determines branch based on role
   - `isTenantAdmin` - Checks if user is tenant admin (can switch branches)
@@ -33,6 +38,7 @@
 ## 🔄 In Progress
 
 ### API Routes - Branch Filtering
+
 - 🔄 `app/api/sales/create/route.ts` - Need to add branch_id filtering
 - ⏳ `app/api/sales/update/route.ts` - Need to add branch_id filtering
 - ⏳ `app/api/items/*` - Need to add branch_id filtering
@@ -41,11 +47,13 @@
 - ⏳ `app/api/expenses/*` - Need to add branch_id filtering
 
 ### Zustand Stores
+
 - ⏳ `lib/stores/itemsStore.ts` - Add branch_id filtering
 - ⏳ `lib/stores/salesStore.ts` - Add branch_id filtering
 - ⏳ `lib/stores/stockStore.ts` - Add branch_id filtering
 
 ### Frontend Components
+
 - ⏳ `components/BranchSelector.tsx` - Branch selector (tenant admin only)
 - ⏳ `components/BranchManagement.tsx` - CRUD for branches
 - ⏳ `components/UserManagement.tsx` - Add branch selection
@@ -56,9 +64,11 @@
 - ⏳ All other components - Add branch_id filtering
 
 ### Stock Calculation
+
 - ⏳ `lib/stock-cascade.ts` - Add branch_id filtering
 
 ### RLS Policies
+
 - ⏳ Update RLS policies to include branch_id filtering
 
 ## 📋 Next Steps
@@ -77,6 +87,7 @@
 ## 🎯 Implementation Pattern
 
 ### For API Routes:
+
 ```typescript
 // 1. Get user's profile with branch_id
 const { data: profile } = await supabase
@@ -86,13 +97,13 @@ const { data: profile } = await supabase
   .single()
 
 // 2. Determine effective branch_id
-const branchId = profile.role === 'admin' && !profile.branch_id
-  ? branch_id_from_request || null  // Tenant admin: can specify
-  : profile.branch_id  // Branch manager/staff: fixed
+const branchId =
+  profile.role === 'admin' && !profile.branch_id
+    ? branch_id_from_request || null // Tenant admin: can specify
+    : profile.branch_id // Branch manager/staff: fixed
 
 // 3. Filter queries by branch_id
-let query = supabase.from('sales')
-  .eq('organization_id', organizationId)
+let query = supabase.from('sales').eq('organization_id', organizationId)
 if (branchId) {
   query = query.eq('branch_id', branchId)
 }
@@ -106,6 +117,7 @@ await supabase.from('sales').insert({
 ```
 
 ### For Components:
+
 ```typescript
 const { branchId, organizationId, isTenantAdmin } = useAuth()
 
@@ -113,7 +125,7 @@ const { branchId, organizationId, isTenantAdmin } = useAuth()
 const { data } = await supabase
   .from('sales')
   .eq('organization_id', organizationId)
-  .eq('branch_id', branchId)  // Only if branchId exists
+  .eq('branch_id', branchId) // Only if branchId exists
 ```
 
 ## ⚠️ Important Notes
@@ -123,4 +135,3 @@ const { data } = await supabase
 3. **Superadmin**: Can access all organizations, but still needs branch context for data
 4. **Migration Safety**: All branch_id columns are nullable initially, so existing queries still work
 5. **Default Branch**: Every organization gets a "Main Branch" automatically
-

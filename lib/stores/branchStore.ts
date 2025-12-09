@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { getSelectedBranchId, setSelectedBranchId, clearSelectedBranchId } from '@/lib/utils/cookies'
+import {
+  getSelectedBranchId,
+  setSelectedBranchId,
+  clearSelectedBranchId,
+} from '@/lib/utils/cookies'
 import { Branch } from '@/types/database'
 
 interface BranchState {
@@ -84,4 +88,3 @@ export const useBranchStore = create<BranchState>((set, get) => ({
     clearSelectedBranchId()
   },
 }))
-

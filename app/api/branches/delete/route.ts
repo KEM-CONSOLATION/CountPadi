@@ -47,7 +47,10 @@ export async function DELETE(request: NextRequest) {
 
     // Superadmins can delete any branch, regular admins only their organization's branches
     if (profile.role !== 'superadmin' && branch.organization_id !== profile.organization_id) {
-      return NextResponse.json({ error: 'Forbidden: Cannot delete branch from another organization' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden: Cannot delete branch from another organization' },
+        { status: 403 }
+      )
     }
 
     // Check if branch has associated data (users, sales, etc.)
@@ -64,7 +67,8 @@ export async function DELETE(request: NextRequest) {
     if ((userCount || 0) > 0 || (salesCount || 0) > 0) {
       return NextResponse.json(
         {
-          error: 'Cannot delete branch with associated users or sales. Please reassign or remove all data first.',
+          error:
+            'Cannot delete branch with associated users or sales. Please reassign or remove all data first.',
         },
         { status: 400 }
       )
@@ -84,4 +88,3 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
-

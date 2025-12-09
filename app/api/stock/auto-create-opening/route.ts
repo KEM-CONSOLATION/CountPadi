@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     const organizationId = profile?.organization_id || null
-    const branchId = profile?.role === 'admin' && !profile?.branch_id ? null : profile?.branch_id || null
+    const branchId =
+      profile?.role === 'admin' && !profile?.branch_id ? null : profile?.branch_id || null
 
     // Reject future dates
     const today = new Date().toISOString().split('T')[0]
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest) {
     const prevDateStr = prevDate.toISOString().split('T')[0]
 
     // Helper functions to add filters
-    const addOrgFilter = (query: any) => (organizationId ? query.eq('organization_id', organizationId) : query)
+    const addOrgFilter = (query: any) =>
+      organizationId ? query.eq('organization_id', organizationId) : query
     const addBranchFilter = (query: any) =>
       branchId !== null && branchId !== undefined ? query.eq('branch_id', branchId) : query
 
