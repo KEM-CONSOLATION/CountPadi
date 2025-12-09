@@ -447,6 +447,65 @@ export default function SalesForm() {
     if (userRole === 'staff' && date !== today) {
       setDate(today)
     }
+    
+    // Auto-create opening stock for today if it doesn't exist
+    const autoCreateTodayOpeningStock = async () => {
+      const todayStr = format(new Date(), 'yyyy-MM-dd')
+      const normalizedDate = normalizeDateStr(date)
+      
+      // Only auto-create for today's date
+      if (normalizedDate === todayStr) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) return
+          
+          // Check if opening stock exists for today
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single()
+          
+          const organizationId = profile?.organization_id || null
+          
+          let openingStockQuery = supabase
+            .from('opening_stock')
+            .select('id')
+            .eq('date', todayStr)
+            .limit(1)
+          
+          if (organizationId) {
+            openingStockQuery = openingStockQuery.eq('organization_id', organizationId)
+          }
+          
+          const { data: existingOpeningStock } = await openingStockQuery
+          
+          // If no opening stock exists, create it
+          if (!existingOpeningStock || existingOpeningStock.length === 0) {
+            const response = await fetch('/api/stock/auto-create-opening', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                date: todayStr,
+                user_id: user.id,
+              }),
+            })
+            
+            if (response.ok) {
+              // Refresh opening stock after creation
+              setTimeout(() => {
+                fetchOpeningStockCallback()
+                fetchItems()
+              }, 500)
+            }
+          }
+        } catch (error) {
+          console.error('Error auto-creating opening stock:', error)
+        }
+      }
+    }
+    
+    autoCreateTodayOpeningStock()
   }, [date, userRole, isPastDate, today, fetchSalesCallback, fetchOpeningStockCallback, fetchRestockingCallback])
 
   // Refresh items when window gains focus (user might have added items in another tab)
@@ -728,7 +787,19 @@ export default function SalesForm() {
         return
       }
       
-      const { data, error } = await supabase
+      // Get user's organization_id for filtering
+      const { data: { user } } = await supabase.auth.getUser()
+      let organizationId: string | null = null
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+        organizationId = profile?.organization_id || null
+      }
+      
+      let restockingQuery = supabase
         .from('restocking')
         .select(`
           *,
@@ -736,6 +807,12 @@ export default function SalesForm() {
         `)
         .eq('date', dateStr)
         .order('created_at', { ascending: false })
+      
+      if (organizationId) {
+        restockingQuery = restockingQuery.eq('organization_id', organizationId)
+      }
+
+      const { data, error } = await restockingQuery
 
       if (!error && data) {
         setRestockings(data as (Restocking & { item?: Item })[])
