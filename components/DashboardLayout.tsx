@@ -57,6 +57,10 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
 
   useEffect(() => {
     if (!hasCompletedTour()) {
+      // On mobile, open sidebar so tour can target navigation items
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setSidebarOpen(true)
+      }
       setRunTour(true)
     }
   }, [])
@@ -364,7 +368,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             </button>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto" data-tour="sidebar">
             {navigation.map(item => {
               const active = isActive(item.href)
               return (
@@ -437,6 +441,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer"
+              data-tour="sidebar-toggle"
+              aria-label="Open menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -459,8 +465,14 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
               )}
               <button
                 type="button"
-                onClick={() => setRunTour(true)}
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                onClick={() => {
+                  // On mobile, open sidebar if tour targets sidebar items
+                  if (window.innerWidth < 768) {
+                    setSidebarOpen(true)
+                  }
+                  setRunTour(true)
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors touch-manipulation"
                 title="Run quick tour"
                 data-tour="tour-trigger"
               >
@@ -472,7 +484,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                     d="M12 18h.01M12 14a4 4 0 10-4-4"
                   />
                 </svg>
-                Take tour
+                <span className="hidden sm:inline">Take tour</span>
+                <span className="sm:hidden">Tour</span>
               </button>
               <div className="hidden lg:block">
                 <h2 className="text-lg font-semibold text-gray-900">
