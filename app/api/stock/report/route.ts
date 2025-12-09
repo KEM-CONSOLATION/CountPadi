@@ -148,6 +148,27 @@ export async function GET(request: NextRequest) {
     wasteSpoilageQuery = addBranchFilter(addOrgFilter(wasteSpoilageQuery))
     const { data: dateWasteSpoilage } = await wasteSpoilageQuery
 
+    // Transfers (branch-aware): outgoing and incoming
+    let outgoingTransfersQuery = supabaseAdmin
+      .from('branch_transfers')
+      .select('item_id, quantity')
+      .eq('date', date)
+    outgoingTransfersQuery = addOrgFilter(outgoingTransfersQuery)
+    if (branchId) {
+      outgoingTransfersQuery = outgoingTransfersQuery.eq('from_branch_id', branchId)
+    }
+    const { data: outgoingTransfers } = await outgoingTransfersQuery
+
+    let incomingTransfersQuery = supabaseAdmin
+      .from('branch_transfers')
+      .select('item_id, quantity')
+      .eq('date', date)
+    incomingTransfersQuery = addOrgFilter(incomingTransfersQuery)
+    if (branchId) {
+      incomingTransfersQuery = incomingTransfersQuery.eq('to_branch_id', branchId)
+    }
+    const { data: incomingTransfers } = await incomingTransfersQuery
+
     // Filter items by organization_id if specified
     const filteredItems = items
 
@@ -175,6 +196,13 @@ export async function GET(request: NextRequest) {
         0
       )
 
+      // Transfers
+      const itemOutgoing = outgoingTransfers?.filter(t => t.item_id === item.id) || []
+      const totalOutgoing = itemOutgoing.reduce((sum, t) => sum + parseFloat(t.quantity.toString()), 0)
+
+      const itemIncoming = incomingTransfers?.filter(t => t.item_id === item.id) || []
+      const totalIncoming = itemIncoming.reduce((sum, t) => sum + parseFloat(t.quantity.toString()), 0)
+
       // Calculate total waste/spoilage for this date
       const itemWasteSpoilage = dateWasteSpoilage?.filter(w => w.item_id === item.id) || []
       const totalWasteSpoilage = itemWasteSpoilage.reduce(
@@ -182,14 +210,14 @@ export async function GET(request: NextRequest) {
         0
       )
 
-      // Closing stock: ALWAYS calculate from formula (Opening + Restocking - Sales - Waste/Spoilage)
+      // Closing stock: ALWAYS calculate from formula (Opening + Restocking + IncomingTransfers - Sales - Waste/Spoilage - OutgoingTransfers)
       // This ensures accuracy even if there's an existing record with incorrect data
       // The existingClosing flag is kept for UI purposes (to show if it was manually entered)
       const existingClosing = existingClosingStock?.find(cs => cs.item_id === item.id)
       // Always calculate closing stock from the formula for accuracy
       const closingStock = Math.max(
         0,
-        openingStock + totalRestocking - totalSales - totalWasteSpoilage
+        openingStock + totalRestocking + totalIncoming - totalSales - totalWasteSpoilage - totalOutgoing
       )
 
       return {
@@ -206,6 +234,8 @@ export async function GET(request: NextRequest) {
         opening_stock_cost_price: existingOpening?.cost_price ?? null,
         opening_stock_selling_price: existingOpening?.selling_price ?? null,
         restocking: totalRestocking,
+        transfers_in: totalIncoming,
+        transfers_out: totalOutgoing,
         sales: totalSales,
         waste_spoilage: totalWasteSpoilage,
         closing_stock: closingStock,

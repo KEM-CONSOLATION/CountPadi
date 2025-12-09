@@ -139,6 +139,24 @@ export async function recalculateClosingStock(
     todayWasteSpoilageQuery = addOrgBranchFilter(todayWasteSpoilageQuery)
     const { data: todayWasteSpoilage } = await todayWasteSpoilageQuery
 
+    // Transfers: outgoing (from branch) and incoming (to branch)
+    let outgoingTransfersQuery = supabaseAdmin
+      .from('branch_transfers')
+      .select('item_id, quantity')
+      .eq('date', date)
+    outgoingTransfersQuery = addOrgBranchFilter(outgoingTransfersQuery)
+    const { data: outgoingTransfers } = await outgoingTransfersQuery
+
+    let incomingTransfersQuery = supabaseAdmin
+      .from('branch_transfers')
+      .select('item_id, quantity')
+      .eq('date', date)
+    if (effective_branch_id) {
+      incomingTransfersQuery = incomingTransfersQuery.eq('to_branch_id', effective_branch_id)
+    }
+    incomingTransfersQuery = addOrgBranchFilter(incomingTransfersQuery)
+    const { data: incomingTransfers } = await incomingTransfersQuery
+
     // Filter items by organization_id if specified
     const filteredItems = organizationId
       ? items.filter(item => item.organization_id === organizationId)
@@ -173,10 +191,27 @@ export async function recalculateClosingStock(
         0
       )
 
+      const itemOutgoingTransfers = outgoingTransfers?.filter(t => t.item_id === item.id) || []
+      const totalOutgoingTransfers = itemOutgoingTransfers.reduce(
+        (sum, t) => sum + parseFloat(t.quantity.toString()),
+        0
+      )
+
+      const itemIncomingTransfers = incomingTransfers?.filter(t => t.item_id === item.id) || []
+      const totalIncomingTransfers = itemIncomingTransfers.reduce(
+        (sum, t) => sum + parseFloat(t.quantity.toString()),
+        0
+      )
+
       // Calculate closing stock
       const closingStock = Math.max(
         0,
-        openingStock + totalRestocking - totalSales - totalWasteSpoilage
+        openingStock +
+          totalRestocking +
+          totalIncomingTransfers -
+          totalSales -
+          totalWasteSpoilage -
+          totalOutgoingTransfers
       )
 
       return {
@@ -186,7 +221,7 @@ export async function recalculateClosingStock(
         recorded_by: user_id,
         organization_id: organizationId,
         branch_id: effective_branch_id,
-        notes: `Auto-calculated: Opening (${openingStock}) + Restocking (${totalRestocking}) - Sales (${totalSales}) - Waste/Spoilage (${totalWasteSpoilage})`,
+        notes: `Auto-calculated: Opening (${openingStock}) + Restocking (${totalRestocking}) + IncomingTransfers (${totalIncomingTransfers}) - Sales (${totalSales}) - Waste/Spoilage (${totalWasteSpoilage}) - OutgoingTransfers (${totalOutgoingTransfers})`,
       }
     })
 

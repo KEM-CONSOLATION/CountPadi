@@ -196,6 +196,20 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             ),
           },
           {
+            name: 'Transfers',
+            href: '/dashboard/transfers',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 9l-3 3m0 0l3 3m-3-3h18M16 15l3-3m0 0l-3-3m3 3H4"
+                />
+              </svg>
+            ),
+          },
+          {
             name: 'Expenses',
             href: '/dashboard/expenses',
             icon: (
