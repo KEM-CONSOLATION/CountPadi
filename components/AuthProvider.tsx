@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/authStore'
 import { useOrganizationStore } from '@/lib/stores/organizationStore'
+import { useBranchStore } from '@/lib/stores/branchStore'
 import { supabase } from '@/lib/supabase/client'
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       initializeOrg(organizationId)
     }
   }, [organizationId, initializeOrg])
+
+  // Initialize branches when organization is available
+  useEffect(() => {
+    if (organizationId) {
+      const { fetchBranches } = useBranchStore.getState()
+      fetchBranches(organizationId).catch(error => {
+        console.error('Error initializing branches:', error)
+        // Don't throw - branches table might not exist yet
+      })
+    }
+  }, [organizationId])
 
   return <>{children}</>
 }
