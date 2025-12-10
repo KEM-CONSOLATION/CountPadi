@@ -147,10 +147,7 @@ export default function ReturnsForm() {
 
   const issuancesWithReturns = issuances.map(issuance => {
     const issuanceReturns = returns.filter(r => r.issuance_id === issuance.id)
-    const returned = issuanceReturns.reduce(
-      (sum, r) => sum + parseFloat(r.quantity.toString()),
-      0
-    )
+    const returned = issuanceReturns.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0)
     const issued = parseFloat(issuance.quantity.toString())
     const sold = issued - returned
 
@@ -226,8 +223,8 @@ export default function ReturnsForm() {
                   <option key={issuance.id} value={issuance.id}>
                     {issuance.staff?.full_name || issuance.staff?.email || 'Unknown'} -{' '}
                     {issuance.item?.name || 'Unknown'} (Issued: {issuance.quantity}{' '}
-                    {issuance.item?.unit || ''}, Available to return: {issuance.availableToReturn.toFixed(2)}{' '}
-                    {issuance.item?.unit || ''})
+                    {issuance.item?.unit || ''}, Available to return:{' '}
+                    {issuance.availableToReturn.toFixed(2)} {issuance.item?.unit || ''})
                   </option>
                 ))}
             </select>
@@ -399,4 +396,3 @@ export default function ReturnsForm() {
     </div>
   )
 }
-

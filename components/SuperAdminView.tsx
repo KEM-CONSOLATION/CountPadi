@@ -317,6 +317,42 @@ export default function SuperAdminView() {
     }
   }
 
+  const handleUpdateStockTimes = async (orgId: string) => {
+    setCreating(true)
+    setMessage(null)
+
+    try {
+      const org = organizations.find(o => o.id === orgId)
+      if (!org) throw new Error('Organization not found')
+
+      const response = await fetch('/api/organizations/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_id: orgId,
+          name: org.name,
+          opening_time: stockTimesData.opening_time || null,
+          closing_time: stockTimesData.closing_time || null,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update stock times')
+
+      setMessage({ type: 'success', text: 'Stock times updated successfully' })
+      setEditingStockTimes(null)
+      setStockTimesData({ opening_time: '', closing_time: '' })
+      fetchOrganizations()
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to update stock times',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const handleUpdateBranding = async (orgId: string) => {
     // Validate brand color format if provided
     if (brandingData.brand_color && !/^#[0-9A-Fa-f]{6}$/.test(brandingData.brand_color)) {
@@ -418,7 +454,7 @@ export default function SuperAdminView() {
       if (!response.ok) throw new Error(data.error || 'Failed to create admin')
 
       setMessage({ type: 'success', text: 'Admin created successfully' })
-      setNewOrg({ name: '', adminEmail: '', adminPassword: '', adminName: '' })
+      setNewOrg({ name: '', business_type: '', adminEmail: '', adminPassword: '', adminName: '' })
       setSelectedOrg(null)
       fetchOrganizations()
     } catch (error) {
@@ -692,7 +728,8 @@ export default function SuperAdminView() {
                         <div className="flex gap-6 mt-2 text-sm text-gray-600">
                           {org.business_type && (
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                              {org.business_type.charAt(0).toUpperCase() + org.business_type.slice(1)}
+                              {org.business_type.charAt(0).toUpperCase() +
+                                org.business_type.slice(1)}
                             </span>
                           )}
                           <span>Users: {org.metrics?.total_users || 0}</span>
@@ -743,8 +780,12 @@ export default function SuperAdminView() {
                                 e.stopPropagation()
                                 setEditingStockTimes(org.id)
                                 setStockTimesData({
-                                  opening_time: org.opening_time ? org.opening_time.substring(0, 5) : '',
-                                  closing_time: org.closing_time ? org.closing_time.substring(0, 5) : '',
+                                  opening_time: org.opening_time
+                                    ? org.opening_time.substring(0, 5)
+                                    : '',
+                                  closing_time: org.closing_time
+                                    ? org.closing_time.substring(0, 5)
+                                    : '',
                                 })
                               }}
                               className="px-3 py-1 cursor-pointer text-xs text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
@@ -844,14 +885,18 @@ export default function SuperAdminView() {
                                 type="time"
                                 value={stockTimesData.opening_time}
                                 onChange={e =>
-                                  setStockTimesData({ ...stockTimesData, opening_time: e.target.value })
+                                  setStockTimesData({
+                                    ...stockTimesData,
+                                    opening_time: e.target.value,
+                                  })
                                 }
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
                                 placeholder="08:00"
                               />
                               <p className="mt-1 text-xs text-gray-500">
-                                Optional: Time when opening stock is automatically calculated (e.g., 08:00). 
-                                If not set, opening stock will be calculated on-demand when you visit the page.
+                                Optional: Time when opening stock is automatically calculated (e.g.,
+                                08:00). If not set, opening stock will be calculated on-demand when
+                                you visit the page.
                               </p>
                             </div>
                             <div>
@@ -862,14 +907,18 @@ export default function SuperAdminView() {
                                 type="time"
                                 value={stockTimesData.closing_time}
                                 onChange={e =>
-                                  setStockTimesData({ ...stockTimesData, closing_time: e.target.value })
+                                  setStockTimesData({
+                                    ...stockTimesData,
+                                    closing_time: e.target.value,
+                                  })
                                 }
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
                                 placeholder="22:00"
                               />
                               <p className="mt-1 text-xs text-gray-500">
-                                Optional: Time when closing stock is automatically calculated (e.g., 22:00). 
-                                If not set, closing stock will be calculated on-demand when you visit the page.
+                                Optional: Time when closing stock is automatically calculated (e.g.,
+                                22:00). If not set, closing stock will be calculated on-demand when
+                                you visit the page.
                               </p>
                             </div>
                             <div className="flex gap-2">
@@ -1324,7 +1373,13 @@ export default function SuperAdminView() {
                 type="button"
                 onClick={() => {
                   setActiveTab('organizations')
-                  setNewOrg({ name: '', business_type: '', adminEmail: '', adminPassword: '', adminName: '' })
+                  setNewOrg({
+                    name: '',
+                    business_type: '',
+                    adminEmail: '',
+                    adminPassword: '',
+                    adminName: '',
+                  })
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
@@ -1406,7 +1461,13 @@ export default function SuperAdminView() {
                 onClick={() => {
                   setActiveTab('organizations')
                   setSelectedOrg(null)
-                  setNewOrg({ name: '', adminEmail: '', adminPassword: '', adminName: '' })
+                  setNewOrg({
+                    name: '',
+                    business_type: '',
+                    adminEmail: '',
+                    adminPassword: '',
+                    adminName: '',
+                  })
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >

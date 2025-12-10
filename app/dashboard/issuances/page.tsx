@@ -24,9 +24,7 @@ export default async function IssuancesPage() {
     redirect('/login?error=unauthorized')
   }
 
-  if (
-    !['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(profile.role)
-  ) {
+  if (!['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(profile.role)) {
     redirect('/dashboard?error=unauthorized')
   }
 
@@ -50,4 +48,3 @@ export default async function IssuancesPage() {
     </DashboardLayout>
   )
 }
-

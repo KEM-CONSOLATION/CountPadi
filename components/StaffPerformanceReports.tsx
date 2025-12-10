@@ -80,8 +80,7 @@ export default function StaffPerformanceReports() {
 
       issuances.forEach(issuance => {
         const staffId = issuance.staff_id
-        const staffName =
-          issuance.staff?.full_name || issuance.staff?.email || 'Unknown Staff'
+        const staffName = issuance.staff?.full_name || issuance.staff?.email || 'Unknown Staff'
 
         if (!staffMap.has(staffId)) {
           staffMap.set(staffId, {
@@ -189,7 +188,9 @@ export default function StaffPerformanceReports() {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : sortedPerformance.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No performance data found for this period</p>
+          <p className="text-gray-500 text-center py-8">
+            No performance data found for this period
+          </p>
         ) : (
           <>
             <div className="mb-4">
@@ -296,4 +297,3 @@ export default function StaffPerformanceReports() {
     </div>
   )
 }
-

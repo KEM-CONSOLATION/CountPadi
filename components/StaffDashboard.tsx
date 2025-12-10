@@ -53,14 +53,8 @@ export default function StaffDashboard() {
       setMyIssuances(issuances)
       setMyReturns(returns)
 
-      const totalIssued = issuances.reduce(
-        (sum, i) => sum + parseFloat(i.quantity.toString()),
-        0
-      )
-      const totalReturned = returns.reduce(
-        (sum, r) => sum + parseFloat(r.quantity.toString()),
-        0
-      )
+      const totalIssued = issuances.reduce((sum, i) => sum + parseFloat(i.quantity.toString()), 0)
+      const totalReturned = returns.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0)
 
       setSummary({
         totalIssued,
@@ -325,4 +319,3 @@ export default function StaffDashboard() {
     </div>
   )
 }
-

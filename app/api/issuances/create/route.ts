@@ -14,16 +14,7 @@ export async function POST(request: NextRequest) {
     })
 
     const body = await request.json()
-    const {
-      item_id,
-      staff_id,
-      quantity,
-      date,
-      shift,
-      notes,
-      user_id,
-      branch_id,
-    } = body
+    const { item_id, staff_id, quantity, date, shift, notes, user_id, branch_id } = body
 
     if (!item_id || !staff_id || !quantity || !date || !user_id) {
       return NextResponse.json(
@@ -50,9 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Issuer profile not found' }, { status: 404 })
     }
 
-    if (
-      !['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(issuerProfile.role)
-    ) {
+    if (!['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(issuerProfile.role)) {
       return NextResponse.json(
         { error: 'Only controllers, branch managers, admins, and tenant admins can issue items' },
         { status: 403 }
@@ -77,8 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const organization_id = issuerProfile.organization_id
-    const effective_branch_id =
-      branch_id || issuerProfile.branch_id || staffProfile.branch_id
+    const effective_branch_id = branch_id || issuerProfile.branch_id || staffProfile.branch_id
 
     if (effective_branch_id) {
       const { data: branch } = await supabaseAdmin
@@ -114,10 +102,7 @@ export async function POST(request: NextRequest) {
 
     const today = new Date().toISOString().split('T')[0]
     if (date > today) {
-      return NextResponse.json(
-        { error: 'Cannot issue items for future dates' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Cannot issue items for future dates' }, { status: 400 })
     }
 
     const { data: newIssuance, error: issuanceError } = await supabaseAdmin
@@ -155,4 +140,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

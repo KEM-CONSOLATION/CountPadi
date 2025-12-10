@@ -224,7 +224,9 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
           </div>
         </div>
       </div>
-      <div className={`grid grid-cols-1 md:grid-cols-2 ${userRole === 'staff' ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 ${userRole === 'staff' ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}
+      >
         {/* Opening Stock Card - Hidden for staff */}
         {userRole !== 'staff' && (
           <Link
@@ -253,7 +255,12 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-1">Opening Stock</h2>
@@ -290,7 +297,12 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-1">Closing Stock</h2>

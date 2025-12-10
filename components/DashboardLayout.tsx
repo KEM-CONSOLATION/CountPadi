@@ -179,12 +179,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
       href: '/dashboard/issuances',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       ),
       roles: ['controller', 'branch_manager', 'admin', 'tenant_admin'],

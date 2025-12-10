@@ -24,7 +24,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { organization_id, name, logo_url, brand_color, business_type, opening_time, closing_time } = body
+    const {
+      organization_id,
+      name,
+      logo_url,
+      brand_color,
+      business_type,
+      opening_time,
+      closing_time,
+    } = body
 
     if (!organization_id || !name) {
       return NextResponse.json({ error: 'organization_id and name are required' }, { status: 400 })
@@ -89,7 +97,9 @@ export async function PUT(request: NextRequest) {
         const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:([0-5][0-9]))?$/
         if (!timeRegex.test(opening_time)) {
           return NextResponse.json(
-            { error: 'Invalid opening time format. Use HH:MM:SS or HH:MM (e.g., 08:00:00 or 08:00)' },
+            {
+              error: 'Invalid opening time format. Use HH:MM:SS or HH:MM (e.g., 08:00:00 or 08:00)',
+            },
             { status: 400 }
           )
         }
@@ -108,7 +118,9 @@ export async function PUT(request: NextRequest) {
         const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:([0-5][0-9]))?$/
         if (!timeRegex.test(closing_time)) {
           return NextResponse.json(
-            { error: 'Invalid closing time format. Use HH:MM:SS or HH:MM (e.g., 22:00:00 or 22:00)' },
+            {
+              error: 'Invalid closing time format. Use HH:MM:SS or HH:MM (e.g., 22:00:00 or 22:00)',
+            },
             { status: 400 }
           )
         }

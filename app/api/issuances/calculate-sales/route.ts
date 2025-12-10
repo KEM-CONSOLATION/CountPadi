@@ -23,10 +23,7 @@ export async function POST(request: NextRequest) {
     const { date, organization_id, branch_id, user_id } = body
 
     if (!date || !user_id) {
-      return NextResponse.json(
-        { error: 'Missing required fields: date, user_id' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields: date, user_id' }, { status: 400 })
     }
 
     let issuancesQuery = supabaseAdmin
@@ -139,4 +136,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

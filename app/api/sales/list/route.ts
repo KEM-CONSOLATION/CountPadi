@@ -18,10 +18,7 @@ export async function GET(request: NextRequest) {
     const organization_id = searchParams.get('organization_id')
     const branch_id = searchParams.get('branch_id')
 
-    let query = supabaseAdmin
-      .from('sales')
-      .select('*')
-      .order('created_at', { ascending: false })
+    let query = supabaseAdmin.from('sales').select('*').order('created_at', { ascending: false })
 
     if (date) {
       query = query.eq('date', date)
@@ -53,4 +50,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

@@ -58,10 +58,7 @@ export default function ReconciliationView() {
         (sum, i) => sum + parseFloat(i.quantity.toString()),
         0
       )
-      const totalReturns = returns.reduce(
-        (sum, r) => sum + parseFloat(r.quantity.toString()),
-        0
-      )
+      const totalReturns = returns.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0)
 
       const manualSales = sales
         .filter(s => s.source === 'manual')
@@ -182,23 +179,33 @@ export default function ReconciliationView() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-500 mb-1">Total Issued</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalIssuances.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {summary.totalIssuances.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-500 mb-1">Total Returned</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalReturns.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {summary.totalReturns.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-500 mb-1">Total Sales</p>
-                  <p className="text-2xl font-bold text-indigo-600">{summary.totalSales.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-indigo-600">
+                    {summary.totalSales.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-sm text-blue-600 mb-1">Manual Sales</p>
-                  <p className="text-2xl font-bold text-blue-700">{summary.manualSales.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {summary.manualSales.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <p className="text-sm text-green-600 mb-1">Issuance Sales</p>
-                  <p className="text-2xl font-bold text-green-700">{summary.issuanceSales.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {summary.issuanceSales.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4">
                   <p className="text-sm text-yellow-600 mb-1">Pending Issuances</p>
@@ -240,4 +247,3 @@ export default function ReconciliationView() {
     </div>
   )
 }
-

@@ -14,15 +14,7 @@ export async function POST(request: NextRequest) {
     })
 
     const body = await request.json()
-    const {
-      issuance_id,
-      quantity,
-      date,
-      reason,
-      notes,
-      user_id,
-      move_to_waste,
-    } = body
+    const { issuance_id, quantity, date, reason, notes, user_id, move_to_waste } = body
 
     if (!issuance_id || !quantity || !date || !user_id) {
       return NextResponse.json(
@@ -49,15 +41,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Receiver profile not found' }, { status: 404 })
     }
 
-    if (
-      !['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(
-        receiverProfile.role
-      )
-    ) {
+    if (!['controller', 'branch_manager', 'admin', 'tenant_admin'].includes(receiverProfile.role)) {
       return NextResponse.json(
         {
-          error:
-            'Only controllers, branch managers, admins, and tenant admins can receive returns',
+          error: 'Only controllers, branch managers, admins, and tenant admins can receive returns',
         },
         { status: 403 }
       )
@@ -92,10 +79,7 @@ export async function POST(request: NextRequest) {
       .eq('issuance_id', issuance_id)
 
     const totalReturned =
-      existingReturns?.reduce(
-        (sum, r) => sum + parseFloat(r.quantity.toString()),
-        0
-      ) || 0
+      existingReturns?.reduce((sum, r) => sum + parseFloat(r.quantity.toString()), 0) || 0
 
     const issuedQuantity = parseFloat(issuance.quantity.toString())
     const availableToReturn = issuedQuantity - totalReturned
@@ -181,4 +165,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
