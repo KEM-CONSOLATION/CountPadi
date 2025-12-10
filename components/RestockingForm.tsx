@@ -572,14 +572,19 @@ export default function RestockingForm() {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
         {editingRestocking ? 'Edit Restocking' : 'Restock Items'}
       </h2>
       <p className="text-sm text-gray-600 mb-4">
         Add quantity to items. This will be added to the opening stock for calculations.
       </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+        role="form"
+        aria-label={editingRestocking ? 'Edit restocking form' : 'Restock items form'}
+      >
         {message && (
           <div
             className={`p-3 rounded ${

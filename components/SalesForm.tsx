@@ -1055,13 +1055,20 @@ export default function SalesForm() {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
         {editingSale ? 'Edit Sales/Usage' : 'Record Sales/Usage'}
       </h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+        role="form"
+        aria-label={editingSale ? 'Edit sales form' : 'Record sales form'}
+      >
         {message && (
           <div
+            role="alert"
+            aria-live="polite"
             className={`p-3 rounded ${
               message.type === 'success'
                 ? 'bg-green-50 text-green-800 border border-green-200'
@@ -1074,9 +1081,15 @@ export default function SalesForm() {
 
         {/* Show warning if tenant admin hasn't selected a branch */}
         {isTenantAdmin && (!branchId || !currentBranch) && (
-          <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 mb-4">
-            <p className="font-medium">⚠️ Please select a branch to record sales</p>
-            <p className="text-sm mt-1">
+          <div
+            role="alert"
+            aria-live="polite"
+            className="p-3 sm:p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 mb-4"
+          >
+            <p className="font-medium text-sm sm:text-base">
+              ⚠️ Please select a branch to record sales
+            </p>
+            <p className="text-xs sm:text-sm mt-1">
               You are viewing data from all branches. To record sales, please select a specific
               branch from the branch selector above.
             </p>
@@ -1119,12 +1132,14 @@ export default function SalesForm() {
             max={format(new Date(), 'yyyy-MM-dd')}
             required
             disabled={!isAdmin}
-            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 ${
+            aria-label="Select date for sales record"
+            aria-describedby="date-help"
+            className={`w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 min-h-[44px] ${
               !isAdmin ? 'bg-gray-50 cursor-not-allowed' : ''
             }`}
             readOnly={!isAdmin}
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p id="date-help" className="mt-1 text-xs text-gray-500">
             {isAdmin || isSuperAdmin
               ? 'Admins can record sales for past dates to backfill data. Staff can only record for today.'
               : 'Sales can only be recorded for today to avoid confusion'}
@@ -1149,7 +1164,9 @@ export default function SalesForm() {
             }}
             required
             disabled={isTenantAdmin && (!branchId || !currentBranch)}
-            className={`w-full capitalize px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 ${
+            aria-label="Select item used"
+            aria-describedby="item-help"
+            className={`w-full capitalize px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white min-h-[44px] ${
               isTenantAdmin && (!branchId || !currentBranch)
                 ? 'bg-gray-50 cursor-not-allowed opacity-50'
                 : 'cursor-pointer'
@@ -1303,7 +1320,7 @@ export default function SalesForm() {
               </option>
             )}
           </select>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={async () => {
@@ -1316,12 +1333,15 @@ export default function SalesForm() {
                 setMessage({ type: 'success', text: 'Items list refreshed!' })
                 setTimeout(() => setMessage(null), 2000)
               }}
-              className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+              aria-label="Refresh items list"
+              className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-800 underline min-h-[44px] px-2 py-1 cursor-pointer touch-manipulation"
             >
               Refresh Items List
             </button>
             {items.length > 0 && (
-              <span className="text-xs text-gray-500">({items.length} items loaded)</span>
+              <span id="item-help" className="text-xs text-gray-500">
+                ({items.length} items loaded)
+              </span>
             )}
           </div>
           {isPastDate && openingStocks.length === 0 && (
@@ -1459,7 +1479,9 @@ export default function SalesForm() {
             onChange={e => handleQuantityChange(e.target.value)}
             required
             min="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+            aria-label="Quantity used"
+            inputMode="numeric"
+            className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 min-h-[44px]"
             placeholder="0"
           />
           {selectedItem &&
@@ -1501,8 +1523,10 @@ export default function SalesForm() {
             value={pricePerUnit}
             onChange={e => handlePricePerUnitChange(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+            className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 min-h-[44px]"
             placeholder="0.00"
+            aria-label="Price per unit in Nigerian Naira"
+            inputMode="decimal"
           />
           {selectedItem &&
             (() => {
@@ -1527,7 +1551,9 @@ export default function SalesForm() {
             value={totalPrice}
             onChange={e => setTotalPrice(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black bg-gray-50"
+            aria-label="Total price in Nigerian Naira"
+            inputMode="decimal"
+            className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 bg-gray-50 min-h-[44px]"
             placeholder="0.00"
           />
           <p className="mt-1 text-xs text-gray-500">
@@ -1544,7 +1570,8 @@ export default function SalesForm() {
             value={paymentMode}
             onChange={e => setPaymentMode(e.target.value as 'cash' | 'transfer')}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
+            aria-label="Select payment mode"
+            className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white cursor-pointer min-h-[44px]"
           >
             <option value="cash">Cash</option>
             <option value="transfer">Transfer</option>
@@ -1560,16 +1587,20 @@ export default function SalesForm() {
             type="text"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-black"
+            aria-label="Sale description"
+            className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 min-h-[44px]"
             placeholder="Rice, Egusi & Fufu"
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             type="submit"
             disabled={loading || (isTenantAdmin && (!branchId || !currentBranch))}
-            className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            aria-label={
+              loading ? 'Saving sales record' : editingSale ? 'Update sales record' : 'Record sales'
+            }
+            className="flex-1 bg-indigo-600 text-white py-3 sm:py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] touch-manipulation"
           >
             {loading ? 'Saving...' : editingSale ? 'Update Sales' : 'Record Sales'}
           </button>
@@ -1578,7 +1609,8 @@ export default function SalesForm() {
               type="button"
               onClick={handleCancelEdit}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              aria-label="Cancel editing sales record"
+              className="px-4 py-3 sm:py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] touch-manipulation"
             >
               Cancel
             </button>
@@ -1587,39 +1619,157 @@ export default function SalesForm() {
       </form>
 
       <div className="mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Sales/Usage Records</h3>
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">
+          Recent Sales/Usage Records
+        </h3>
         {sales.length > 0 ? (
           <>
-            <div className="overflow-x-auto -mx-6 px-6">
-              <table className="min-w-full divide-y divide-gray-200">
+            {/* Mobile Card View */}
+            <div className="block sm:hidden space-y-3">
+              {sales
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map(sale => (
+                  <div
+                    key={sale.id}
+                    className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {sale.item?.name || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {format(new Date(sale.date), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                      {(userRole === 'admin' || userRole === 'superadmin') && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(sale)}
+                            aria-label={`Edit sale for ${sale.item?.name}`}
+                            className="text-indigo-600 hover:text-indigo-900 text-sm font-medium min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer touch-manipulation"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(sale.id)}
+                            aria-label={`Delete sale for ${sale.item?.name}`}
+                            className="text-red-600 hover:text-red-900 text-sm font-medium min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer touch-manipulation"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Quantity:</span>
+                        <span className="text-gray-900 font-medium">
+                          {sale.quantity} {sale.item?.unit || ''}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Price/Unit:</span>
+                        <span className="text-gray-900">₦{sale.price_per_unit.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total:</span>
+                        <span className="text-gray-900 font-semibold">
+                          ₦{sale.total_price.toFixed(2)}
+                        </span>
+                      </div>
+                      {sale.batch_label && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Batch:</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {sale.batch_label}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Payment:</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            sale.payment_mode === 'cash'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {sale.payment_mode === 'cash' ? 'Cash' : 'Transfer'}
+                        </span>
+                      </div>
+                      {sale.description && (
+                        <div className="pt-1 border-t border-gray-100">
+                          <span className="text-gray-600 text-xs">{sale.description}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <table
+                className="min-w-full divide-y divide-gray-200"
+                role="table"
+                aria-label="Recent sales records"
+              >
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      scope="col"
+                      className="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
                       Date
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      scope="col"
+                      className="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
                       Item
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      scope="col"
+                      className="hidden md:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
                       Batch
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Quantity
+                    <th
+                      scope="col"
+                      className="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      Qty
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      scope="col"
+                      className="hidden lg:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
                       Price/Unit
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Total Price
+                    <th
+                      scope="col"
+                      className="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      Total
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                      Payment Mode
+                    <th
+                      scope="col"
+                      className="hidden lg:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      Payment
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      scope="col"
+                      className="hidden xl:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
                       Description
                     </th>
                     {(userRole === 'admin' || userRole === 'superadmin') && (
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th
+                        scope="col"
+                        className="px-2 sm:px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                      >
                         Actions
                       </th>
                     )}

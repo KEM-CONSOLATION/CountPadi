@@ -35,10 +35,10 @@ export default function BranchSelector() {
   }
 
   return (
-    <div className="flex items-center gap-2" data-tour="branch-selector">
+    <div className="flex items-center gap-1 sm:gap-2 min-w-0" data-tour="branch-selector">
       <label
         htmlFor="branch-selector"
-        className="text-sm font-medium text-gray-700 whitespace-nowrap"
+        className="hidden sm:inline text-sm font-medium text-gray-700 whitespace-nowrap"
       >
         Branch:
       </label>
@@ -49,8 +49,10 @@ export default function BranchSelector() {
           const branch = availableBranches.find(b => b.id === e.target.value)
           setCurrentBranch(branch || null)
         }}
-        className="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900 bg-white cursor-pointer"
+        aria-label="Select branch"
+        className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white cursor-pointer min-h-[36px] sm:min-h-[44px] touch-manipulation max-w-[120px] sm:max-w-[180px] md:max-w-none"
         disabled={loading}
+        style={{ textOverflow: 'ellipsis' }}
       >
         <option value="">All Branches</option>
         {availableBranches.map(branch => (
@@ -60,7 +62,7 @@ export default function BranchSelector() {
         ))}
       </select>
       {loading && (
-        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 flex-shrink-0"></div>
       )}
     </div>
   )

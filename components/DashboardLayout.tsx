@@ -462,7 +462,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors"
+              aria-label="Logout"
+              className="w-full flex items-center justify-center px-4 py-3 sm:py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors min-h-[44px] touch-manipulation"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -480,10 +481,10 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
 
       <div className="lg:pl-64">
         <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 px-2 sm:px-4 lg:px-8 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer"
+              className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer flex-shrink-0"
               data-tour="sidebar-toggle"
               aria-label="Open menu"
             >
@@ -496,12 +497,17 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 />
               </svg>
             </button>
-            <div className="flex-1" />
-            <div className="flex items-center gap-3" data-tour="topbar-actions">
+            <div className="flex-1 min-w-0" />
+            <div
+              className="flex items-center gap-1 sm:gap-2 lg:gap-3 min-w-0 flex-shrink-0"
+              data-tour="topbar-actions"
+            >
               {user.role !== 'superadmin' && (
                 <>
-                  <BranchSelector />
-                  <div className="relative">
+                  <div className="min-w-0 flex-shrink">
+                    <BranchSelector />
+                  </div>
+                  <div className="relative flex-shrink-0">
                     <NotificationCenter />
                   </div>
                 </>
@@ -515,9 +521,10 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                   }
                   setRunTour(true)
                 }}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors touch-manipulation cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors touch-manipulation cursor-pointer flex-shrink-0 min-h-[44px]"
                 title="Run quick tour"
                 data-tour="tour-trigger"
+                aria-label="Take tour"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -527,8 +534,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                     d="M12 18h.01M12 14a4 4 0 10-4-4"
                   />
                 </svg>
-                <span className="hidden sm:inline">Take tour</span>
-                <span className="sm:hidden">Tour</span>
+                <span className="hidden md:inline">Take tour</span>
               </button>
               <div className="hidden lg:block">
                 <h2 className="text-lg font-semibold text-gray-900">
