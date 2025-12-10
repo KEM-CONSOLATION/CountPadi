@@ -15,15 +15,23 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, organization_id')
+      .select('role, organization_id, branch_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'superadmin')) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
+    if (
+      !profile ||
+      (profile.role !== 'admin' &&
+        profile.role !== 'superadmin' &&
+        profile.role !== 'branch_manager')
+    ) {
+      return NextResponse.json(
+        { error: 'Forbidden: Admin or Branch Manager access required' },
+        { status: 403 }
+      )
     }
 
-    // Superadmins can create users for any organization, regular admins need their own org
+    // Superadmins can create users for any organization, regular admins and branch managers need their own org
     if (profile.role !== 'superadmin' && !profile.organization_id) {
       return NextResponse.json(
         { error: 'You must belong to an organization to create users' },
@@ -38,7 +46,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    // Determine organization_id: superadmin can specify, regular admin uses their own
+    // Branch managers can only create staff and controller roles
+    if (profile.role === 'branch_manager' && role !== 'staff' && role !== 'controller') {
+      return NextResponse.json(
+        { error: 'Branch managers can only create staff and controller users' },
+        { status: 403 }
+      )
+    }
+
+    // Branch managers must create users in their own branch
+    if (profile.role === 'branch_manager') {
+      if (!profile.branch_id) {
+        return NextResponse.json(
+          { error: 'You must be assigned to a branch to create users' },
+          { status: 400 }
+        )
+      }
+      // Force branch_id to be the branch manager's branch
+      if (branch_id && branch_id !== profile.branch_id) {
+        return NextResponse.json(
+          { error: 'Branch managers can only create users in their own branch' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Determine organization_id: superadmin can specify, regular admin/branch manager uses their own
     let targetOrganizationId: string | null = null
     if (profile.role === 'superadmin') {
       if (!organization_id) {
@@ -54,14 +87,20 @@ export async function POST(request: NextRequest) {
 
     // Validate branch_id based on role
     let targetBranchId: string | null = null
-    if (role === 'tenant_admin' || (role === 'admin' && !branch_id)) {
+    if (profile.role === 'branch_manager') {
+      // Branch managers: force to their branch
+      targetBranchId = profile.branch_id
+    } else if (role === 'tenant_admin' || (role === 'admin' && !branch_id)) {
       // Tenant admin: branch_id should be null (can switch branches)
       targetBranchId = null
-    } else if (role === 'branch_manager' || role === 'staff') {
-      // Branch manager and staff: branch_id is required
+    } else if (role === 'branch_manager' || role === 'staff' || role === 'controller') {
+      // Branch manager, staff, and controller: branch_id is required
       if (!branch_id) {
         return NextResponse.json(
-          { error: 'branch_id is required when creating branch managers or staff users' },
+          {
+            error:
+              'branch_id is required when creating branch managers, staff, or controller users',
+          },
           { status: 400 }
         )
       }

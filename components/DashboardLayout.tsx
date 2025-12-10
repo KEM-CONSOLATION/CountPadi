@@ -383,7 +383,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           />
         </svg>
       ),
-      roles: ['admin', 'tenant_admin'], // Only tenant admins can access management
+      roles: ['admin', 'tenant_admin', 'branch_manager'], // Only tenant admins can access management
     },
   ]
 

@@ -212,7 +212,7 @@ export default function AdminDashboard() {
   >([])
   const [sales, setSales] = useState<(Sale & { item: Item; recorded_by_profile: Profile })[]>([])
   const [loading, setLoading] = useState(false)
-  const [userRole, setUserRole] = useState<'admin' | 'superadmin' | null>(null)
+  const [userRole, setUserRole] = useState<'admin' | 'superadmin' | 'branch_manager' | null>(null)
   const [activeTab, setActiveTab] = useState<
     'overview' | 'items' | 'users' | 'branches' | 'superadmin'
   >('overview')
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
         .eq('id', user.id)
         .single()
       if (profile) {
-        const role = profile.role as 'admin' | 'superadmin'
+        const role = profile.role as 'admin' | 'superadmin' | 'branch_manager'
         setUserRole(role)
         // Superadmins should default to superadmin tab
         if (role === 'superadmin') {

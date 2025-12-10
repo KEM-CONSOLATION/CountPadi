@@ -20,7 +20,13 @@ export default async function AdminPage() {
     redirect('/login?error=unauthorized')
   }
 
-  if (profile.role !== 'admin' && profile.role !== 'superadmin') {
+  // Allow admin, tenant_admin, branch_manager, and superadmin to access
+  if (
+    profile.role !== 'admin' &&
+    profile.role !== 'tenant_admin' &&
+    profile.role !== 'branch_manager' &&
+    profile.role !== 'superadmin'
+  ) {
     redirect('/dashboard')
   }
 

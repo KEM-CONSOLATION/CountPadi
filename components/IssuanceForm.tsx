@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Item, Profile, Issuance } from '@/types/database'
+import { Profile, Issuance } from '@/types/database'
 import { format } from 'date-fns'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useItemsStore } from '@/lib/stores/itemsStore'
@@ -32,7 +32,8 @@ export default function IssuanceForm() {
       fetchStaff()
       fetchIssuances()
     }
-  }, [organizationId, branchId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, branchId, isTenantAdmin])
 
   const fetchStaff = async () => {
     try {
@@ -49,14 +50,19 @@ export default function IssuanceForm() {
 
       if (!profile) return
 
+      // Only fetch users with role 'staff'
       let query = supabase
         .from('profiles')
         .select('*')
         .eq('organization_id', profile.organization_id)
-        .eq('role', 'staff')
+        .eq('role', 'staff') // Only staff role
 
-      if (profile.branch_id) {
-        query = query.eq('branch_id', profile.branch_id)
+      // For tenant admins, use the selected branchId (if any)
+      // For branch managers, use their assigned branch_id
+      const effectiveBranchId = isTenantAdmin && branchId ? branchId : profile.branch_id
+
+      if (effectiveBranchId) {
+        query = query.eq('branch_id', effectiveBranchId)
       }
 
       const { data, error } = await query.order('full_name', { ascending: true })
@@ -68,7 +74,7 @@ export default function IssuanceForm() {
     }
   }
 
-  const fetchIssuances = async () => {
+  const fetchIssuances = useCallback(async () => {
     if (!organizationId) return
     setLoadingIssuances(true)
     try {
@@ -91,11 +97,11 @@ export default function IssuanceForm() {
     } finally {
       setLoadingIssuances(false)
     }
-  }
+  }, [date, organizationId, branchId])
 
   useEffect(() => {
     fetchIssuances()
-  }, [date, organizationId, branchId])
+  }, [fetchIssuances])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

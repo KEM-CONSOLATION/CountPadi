@@ -24,8 +24,9 @@ export default async function BranchesPage() {
     redirect('/login?error=unauthorized')
   }
 
-  // Only tenant admins can access branches page
-  if (profile.role !== 'tenant_admin') {
+  // Only admins (tenant_admin) can access branches page
+  // Branch managers manage their branch operations but cannot create/manage branches
+  if (profile.role !== 'admin' && profile.role !== 'tenant_admin') {
     redirect('/dashboard')
   }
 

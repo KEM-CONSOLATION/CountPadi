@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useBranchStore } from '@/lib/stores/branchStore'
 
 export default function UserManagement() {
-  const { organizationId, isTenantAdmin } = useAuth()
+  const { organizationId, isTenantAdmin, profile: authProfile } = useAuth()
   const { availableBranches, fetchBranches } = useBranchStore()
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(false)
@@ -15,24 +15,52 @@ export default function UserManagement() {
   const [success, setSuccess] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
     fullName: '',
-    role: 'staff' as 'admin' | 'staff' | 'superadmin' | 'branch_manager',
+    role: 'staff' as 'admin' | 'staff' | 'superadmin' | 'branch_manager' | 'controller',
     branch_id: '' as string | '',
   })
   const [showPassword, setShowPassword] = useState(false)
+  const isBranchManager = currentUserProfile?.role === 'branch_manager'
 
   useEffect(() => {
-    if (organizationId && isTenantAdmin) {
+    if (organizationId && (isTenantAdmin || isBranchManager)) {
       fetchBranches(organizationId)
     }
-  }, [organizationId, isTenantAdmin, fetchBranches])
+  }, [organizationId, isTenantAdmin, isBranchManager, fetchBranches])
 
   useEffect(() => {
+    fetchCurrentUserProfile()
     fetchUsers()
   }, [])
+
+  const fetchCurrentUserProfile = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setCurrentUserProfile(profile)
+        // Auto-set branch_id for branch managers
+        if (profile.role === 'branch_manager' && profile.branch_id) {
+          setNewUser(prev => ({ ...prev, branch_id: profile.branch_id || '' }))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user profile:', error)
+    }
+  }
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -53,22 +81,25 @@ export default function UserManagement() {
 
       let query = supabase.from('profiles').select('*')
 
-      // Admins only see staff in their organization (exclude themselves and other admins)
-      if (profile.role === 'admin' && profile.organization_id) {
+      // Admins and branch managers can see users in their organization/branch
+      if (
+        (profile.role === 'admin' || profile.role === 'branch_manager') &&
+        profile.organization_id
+      ) {
         // Tenant admins see all staff and branch managers in their organization
         // Branch managers see only staff in their branch
-        if (!profile.branch_id) {
-          // Tenant admin: see all staff and branch managers
-          query = query
-            .eq('organization_id', profile.organization_id)
-            .in('role', ['staff', 'branch_manager'])
-            .neq('id', user.id) // Exclude current user
-        } else {
-          // Branch manager: see only staff in their branch
+        if (profile.role === 'branch_manager' && profile.branch_id) {
+          // Branch manager: see only staff and controllers in their branch
           query = query
             .eq('organization_id', profile.organization_id)
             .eq('branch_id', profile.branch_id)
-            .eq('role', 'staff')
+            .in('role', ['staff', 'controller'])
+            .neq('id', user.id) // Exclude current user
+        } else if (!profile.branch_id) {
+          // Tenant admin: see all staff, controllers, and branch managers in their organization
+          query = query
+            .eq('organization_id', profile.organization_id)
+            .in('role', ['staff', 'controller', 'branch_manager'])
             .neq('id', user.id) // Exclude current user
         }
       } else if (profile.role === 'superadmin') {
@@ -94,7 +125,7 @@ export default function UserManagement() {
 
   const updateUserRole = async (
     userId: string,
-    newRole: 'admin' | 'staff' | 'superadmin' | 'branch_manager'
+    newRole: 'admin' | 'staff' | 'superadmin' | 'branch_manager' | 'controller'
   ) => {
     setError(null)
     setSuccess(null)
@@ -167,7 +198,7 @@ export default function UserManagement() {
         email: string
         password: string
         fullName: string
-        role: 'admin' | 'staff' | 'superadmin' | 'branch_manager'
+        role: 'admin' | 'staff' | 'superadmin' | 'branch_manager' | 'controller'
         branch_id?: string | null
       } = {
         email: newUser.email,
@@ -177,13 +208,20 @@ export default function UserManagement() {
       }
 
       // Set branch_id based on role
-      if (newUser.role === 'admin') {
+      if (isBranchManager && currentUserProfile?.branch_id) {
+        // Branch managers: force to their branch
+        userData.branch_id = currentUserProfile.branch_id
+      } else if (newUser.role === 'admin') {
         // Tenant/tenant-admin: no branch_id (can switch)
         userData.branch_id = null
-      } else if (newUser.role === 'branch_manager' || newUser.role === 'staff') {
-        // Branch manager and staff: require branch_id
+      } else if (
+        newUser.role === 'branch_manager' ||
+        newUser.role === 'staff' ||
+        newUser.role === 'controller'
+      ) {
+        // Branch manager, staff, and controller: require branch_id
         if (!newUser.branch_id) {
-          setError('Branch is required for branch managers and staff')
+          setError('Branch is required for branch managers, staff, and controllers')
           setCreating(false)
           return
         }
@@ -337,7 +375,12 @@ export default function UserManagement() {
                 id="role"
                 value={newUser.role}
                 onChange={e => {
-                  const role = e.target.value as 'admin' | 'staff' | 'superadmin' | 'branch_manager'
+                  const role = e.target.value as
+                    | 'admin'
+                    | 'staff'
+                    | 'superadmin'
+                    | 'branch_manager'
+                    | 'controller'
                   setNewUser({
                     ...newUser,
                     role,
@@ -348,30 +391,40 @@ export default function UserManagement() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
               >
                 <option value="staff">Staff</option>
-                <option value="branch_manager">Branch Manager</option>
+                <option value="controller">Controller</option>
+                {!isBranchManager && <option value="branch_manager">Branch Manager</option>}
                 {isTenantAdmin && <option value="admin">Tenant Admin</option>}
               </select>
             </div>
 
-            {(newUser.role === 'staff' || newUser.role === 'branch_manager') && (
+            {(newUser.role === 'staff' ||
+              newUser.role === 'branch_manager' ||
+              newUser.role === 'controller') && (
               <div>
                 <label htmlFor="branch_id" className="block text-sm font-medium text-gray-700 mb-2">
                   Branch <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="branch_id"
-                  value={newUser.branch_id}
-                  onChange={e => setNewUser({ ...newUser, branch_id: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
-                >
-                  <option value="">Select a branch</option>
-                  {availableBranches.map(branch => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+                {isBranchManager ? (
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                    {availableBranches.find(b => b.id === currentUserProfile?.branch_id)?.name ||
+                      'Your Branch'}
+                  </div>
+                ) : (
+                  <select
+                    id="branch_id"
+                    value={newUser.branch_id}
+                    onChange={e => setNewUser({ ...newUser, branch_id: e.target.value })}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 cursor-pointer"
+                  >
+                    <option value="">Select a branch</option>
+                    {availableBranches.map(branch => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 
