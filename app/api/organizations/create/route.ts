@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     })
 
     const body = await request.json()
-    const { name, user_id, business_type } = body
+    const { name, user_id, business_type, subdomain } = body
 
     if (!name || !user_id) {
       return NextResponse.json({ error: 'Missing name or user_id' }, { status: 400 })
@@ -27,6 +27,95 @@ export async function POST(request: NextRequest) {
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '')
 
+    // Generate subdomain from name if not provided
+    const generateSubdomain = (orgName: string): string => {
+      let generated = orgName
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 63)
+      return generated || null
+    }
+
+    // Reserved subdomains that cannot be used
+    const reservedSubdomains = [
+      'www',
+      'api',
+      'admin',
+      'app',
+      'mail',
+      'ftp',
+      'test',
+      'staging',
+      'dev',
+      'blog',
+      'support',
+      'help',
+      'docs',
+      'status',
+      'cdn',
+      'assets',
+      'static',
+      'media',
+    ]
+
+    let finalSubdomain: string | null = null
+
+    if (subdomain && subdomain.trim() !== '') {
+      // Validate provided subdomain
+      const subdomainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+      const cleanSubdomain = subdomain.toLowerCase().trim()
+
+      if (!subdomainRegex.test(cleanSubdomain)) {
+        return NextResponse.json(
+          {
+            error:
+              'Invalid subdomain format. Use lowercase letters, numbers, and hyphens only. Must start and end with alphanumeric characters.',
+          },
+          { status: 400 }
+        )
+      }
+
+      if (reservedSubdomains.includes(cleanSubdomain)) {
+        return NextResponse.json(
+          { error: `Subdomain "${cleanSubdomain}" is reserved and cannot be used.` },
+          { status: 400 }
+        )
+      }
+
+      // Check if subdomain already exists
+      const { data: existing } = await supabaseAdmin
+        .from('organizations')
+        .select('id')
+        .eq('subdomain', cleanSubdomain)
+        .single()
+
+      if (existing) {
+        return NextResponse.json({ error: 'Subdomain already taken' }, { status: 400 })
+      }
+
+      finalSubdomain = cleanSubdomain
+    } else {
+      // Auto-generate subdomain from name
+      const generated = generateSubdomain(name)
+      if (generated && !reservedSubdomains.includes(generated)) {
+        // Check if generated subdomain is available
+        const { data: existing } = await supabaseAdmin
+          .from('organizations')
+          .select('id')
+          .eq('subdomain', generated)
+          .single()
+
+        if (!existing) {
+          finalSubdomain = generated
+        }
+        // If taken, leave as null (optional field)
+      }
+    }
+
     const { data: organization, error: orgError } = await supabaseAdmin
       .from('organizations')
       .insert({
@@ -34,6 +123,7 @@ export async function POST(request: NextRequest) {
         slug,
         created_by: user_id,
         business_type: business_type || null,
+        subdomain: finalSubdomain,
       })
       .select()
       .single()

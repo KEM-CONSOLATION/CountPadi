@@ -15,12 +15,20 @@ export async function PUT(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'superadmin') {
-      return NextResponse.json({ error: 'Forbidden: Superadmin access required' }, { status: 403 })
+    // Allow superadmin or tenant admin (for their own org)
+    if (!profile) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const isSuperAdmin = profile.role === 'superadmin'
+    const isTenantAdmin = profile.role === 'admin' || profile.role === 'tenant_admin'
+
+    if (!isSuperAdmin && !isTenantAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -32,10 +40,21 @@ export async function PUT(request: NextRequest) {
       business_type,
       opening_time,
       closing_time,
+      subdomain,
     } = body
 
     if (!organization_id || !name) {
       return NextResponse.json({ error: 'organization_id and name are required' }, { status: 400 })
+    }
+
+    // Tenant admin can only update their own organization
+    if (isTenantAdmin && !isSuperAdmin) {
+      if (profile.organization_id !== organization_id) {
+        return NextResponse.json(
+          { error: 'Forbidden: You can only update your own organization' },
+          { status: 403 }
+        )
+      }
     }
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -130,6 +149,69 @@ export async function PUT(request: NextRequest) {
       } else {
         // Empty string or null means no automatic calculation - use on-demand
         updateData.closing_time = null
+      }
+    }
+
+    // Handle subdomain update
+    if (subdomain !== undefined) {
+      const reservedSubdomains = [
+        'www',
+        'api',
+        'admin',
+        'app',
+        'mail',
+        'ftp',
+        'test',
+        'staging',
+        'dev',
+        'blog',
+        'support',
+        'help',
+        'docs',
+        'status',
+        'cdn',
+        'assets',
+        'static',
+        'media',
+      ]
+
+      if (subdomain && subdomain.trim() !== '') {
+        const subdomainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+        const cleanSubdomain = subdomain.toLowerCase().trim()
+
+        if (!subdomainRegex.test(cleanSubdomain)) {
+          return NextResponse.json(
+            {
+              error:
+                'Invalid subdomain format. Use lowercase letters, numbers, and hyphens only. Must start and end with alphanumeric characters.',
+            },
+            { status: 400 }
+          )
+        }
+
+        if (reservedSubdomains.includes(cleanSubdomain)) {
+          return NextResponse.json(
+            { error: `Subdomain "${cleanSubdomain}" is reserved and cannot be used.` },
+            { status: 400 }
+          )
+        }
+
+        // Check if subdomain is taken by another organization
+        const { data: existing } = await supabaseAdmin
+          .from('organizations')
+          .select('id')
+          .eq('subdomain', cleanSubdomain)
+          .neq('id', organization_id)
+          .single()
+
+        if (existing) {
+          return NextResponse.json({ error: 'Subdomain already taken' }, { status: 400 })
+        }
+
+        updateData.subdomain = cleanSubdomain
+      } else {
+        // Empty string means remove subdomain
+        updateData.subdomain = null
       }
     }
 

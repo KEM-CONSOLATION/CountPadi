@@ -18,6 +18,7 @@ export interface Organization {
   business_type?: string | null
   opening_time?: string | null
   closing_time?: string | null
+  subdomain?: string | null
 }
 
 export interface Branch {

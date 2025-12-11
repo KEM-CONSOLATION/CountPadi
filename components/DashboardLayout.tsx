@@ -623,6 +623,26 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           <UserTour user={user} run={runTour} onClose={() => setRunTour(false)} />
           {children}
         </main>
+
+        {/* Footer with subdomain and "Powered by" */}
+        <footer className="border-t border-gray-200 bg-white py-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              {organization?.subdomain ? (
+                <span>
+                  <span className="font-medium text-gray-700">{organization.subdomain}.countpadi.com</span>
+                  <span className="mx-2">·</span>
+                  <span>Powered by CountPadi</span>
+                </span>
+              ) : (
+                <span>Powered by CountPadi</span>
+              )}
+            </div>
+            <div className="text-xs text-gray-400">
+              © {new Date().getFullYear()} CountPadi. All rights reserved.
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   )

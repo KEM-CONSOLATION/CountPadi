@@ -1,36 +1,44 @@
 # User Role Permissions Summary
 
 ## Overview
+
 This document outlines what each user role can see and access in CountPadi.
 
 ---
 
 ## 1. SUPERADMIN
+
 **Access Level:** Platform-wide, all organizations
 
 ### Sidebar Navigation:
+
 - ✅ Organizations (redirects to `/admin`)
 
 ### Dashboard:
+
 - ❌ Cannot access regular dashboard (redirected to `/admin`)
 - ✅ Super Admin View (manages all organizations)
 
 ### Can Access:
+
 - ✅ All organizations management
 - ✅ Create/edit/delete organizations
 - ✅ View all users across all organizations
 - ✅ Manage organization settings (business type, opening/closing times, branding)
 
 ### Cannot Access:
+
 - ❌ Operational features (issuances, returns, stock management)
 - ❌ Branch-specific operations
 
 ---
 
 ## 2. ADMIN / TENANT_ADMIN
+
 **Access Level:** Organization-wide, all branches
 
 ### Sidebar Navigation:
+
 - ✅ Dashboard
 - ✅ Opening Stock
 - ✅ Restocking
@@ -51,6 +59,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Management
 
 ### Dashboard Sections:
+
 - ✅ Sales Stats Card
 - ✅ Opening Stock Card
 - ✅ Closing Stock Card
@@ -62,6 +71,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Top Items Chart
 
 ### Can Access:
+
 - ✅ All features in their organization
 - ✅ Create/manage branches
 - ✅ Create users (staff, controller, branch_manager, admin)
@@ -73,14 +83,17 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Inventory valuation
 
 ### Cannot Access:
+
 - ❌ Other organizations (unless superadmin)
 
 ---
 
 ## 3. BRANCH_MANAGER
+
 **Access Level:** Single branch within organization
 
 ### Sidebar Navigation:
+
 - ✅ Dashboard
 - ✅ Opening Stock
 - ✅ Restocking
@@ -101,6 +114,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Management (can create users for their branch)
 
 ### Dashboard Sections:
+
 - ✅ Sales Stats Card
 - ✅ Opening Stock Card
 - ✅ Closing Stock Card
@@ -112,6 +126,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Top Items Chart
 
 ### Can Access:
+
 - ✅ All operational features for their branch
 - ✅ Create users (staff and controller only) for their branch
 - ✅ View/manage staff in their branch only
@@ -123,6 +138,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ View staff performance
 
 ### Cannot Access:
+
 - ❌ Create/manage branches
 - ❌ Create admin or branch_manager roles
 - ❌ View users from other branches
@@ -132,9 +148,11 @@ This document outlines what each user role can see and access in CountPadi.
 ---
 
 ## 4. CONTROLLER
+
 **Access Level:** Single branch within organization
 
 ### Sidebar Navigation:
+
 - ✅ Dashboard
 - ❌ Opening Stock
 - ❌ Restocking
@@ -155,6 +173,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ❌ Management
 
 ### Dashboard Sections:
+
 - ✅ Sales Stats Card
 - ❌ Opening Stock Card
 - ❌ Closing Stock Card
@@ -166,6 +185,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Top Items Chart
 
 ### Can Access:
+
 - ✅ Issue items to staff
 - ✅ Record returns from staff
 - ✅ View reconciliation
@@ -176,6 +196,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ View low stock alerts
 
 ### Cannot Access:
+
 - ❌ Opening/closing stock management
 - ❌ Restocking
 - ❌ Manual sales entry (use issuance workflow)
@@ -189,9 +210,11 @@ This document outlines what each user role can see and access in CountPadi.
 ---
 
 ## 5. STAFF
+
 **Access Level:** Single branch within organization
 
 ### Sidebar Navigation:
+
 - ✅ Dashboard
 - ❌ Opening Stock
 - ❌ Restocking
@@ -213,6 +236,7 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ My Issuances
 
 ### Dashboard Sections:
+
 - ✅ Sales Stats Card
 - ❌ Opening Stock Card
 - ❌ Closing Stock Card
@@ -224,11 +248,13 @@ This document outlines what each user role can see and access in CountPadi.
 - ✅ Top Items Chart
 
 ### Can Access:
+
 - ✅ View their own issuances
 - ✅ Confirm receipt of issued items (if they have smartphone)
 - ✅ View their sales performance (from issuances)
 
 ### Cannot Access:
+
 - ❌ All management features
 - ❌ Stock management
 - ❌ Sales entry
@@ -241,29 +267,29 @@ This document outlines what each user role can see and access in CountPadi.
 
 ## Summary Table
 
-| Feature | Superadmin | Admin/Tenant Admin | Branch Manager | Controller | Staff |
-|---------|-----------|-------------------|----------------|------------|-------|
-| **Dashboard** | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Opening Stock** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Closing Stock** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Restocking** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Sales/Usage (Manual)** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Issue Items** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Returns** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Reconciliation** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Staff Performance** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **My Issuances** | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **History** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Sales Reports** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Profit & Loss** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Transfers** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Expenses** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Waste/Spoilage** | ❌ | ✅ | ✅ | ✅ | ❌ |
-| **Inventory Valuation** | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **Branches** | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **Management** | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Create Users** | ✅ | ✅ | ✅ (staff/controller only) | ❌ | ❌ |
-| **View All Branches** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Feature                  | Superadmin | Admin/Tenant Admin | Branch Manager             | Controller | Staff |
+| ------------------------ | ---------- | ------------------ | -------------------------- | ---------- | ----- |
+| **Dashboard**            | ❌         | ✅                 | ✅                         | ✅         | ✅    |
+| **Opening Stock**        | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Closing Stock**        | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Restocking**           | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Sales/Usage (Manual)** | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Issue Items**          | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Returns**              | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Reconciliation**       | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Staff Performance**    | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **My Issuances**         | ❌         | ❌                 | ❌                         | ❌         | ✅    |
+| **History**              | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Sales Reports**        | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Profit & Loss**        | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Transfers**            | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Expenses**             | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Waste/Spoilage**       | ❌         | ✅                 | ✅                         | ✅         | ❌    |
+| **Inventory Valuation**  | ❌         | ✅                 | ✅                         | ❌         | ❌    |
+| **Branches**             | ❌         | ✅                 | ❌                         | ❌         | ❌    |
+| **Management**           | ✅         | ✅                 | ✅                         | ❌         | ❌    |
+| **Create Users**         | ✅         | ✅                 | ✅ (staff/controller only) | ❌         | ❌    |
+| **View All Branches**    | ✅         | ✅                 | ❌                         | ❌         | ❌    |
 
 ---
 
@@ -278,4 +304,3 @@ This document outlines what each user role can see and access in CountPadi.
 4. **Admin/Tenant Admin** have full access to their organization across all branches.
 
 5. **Superadmin** manages the platform and all organizations but doesn't access operational features.
-

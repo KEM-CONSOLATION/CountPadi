@@ -1,5 +1,45 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+// Get subdomain from hostname (backward compatible - returns null if no subdomain)
+function getSubdomain(hostname: string): string | null {
+  // Remove port if present
+  const host = hostname.split(':')[0]
+
+  // For localhost subdomains (local testing), allow them
+  // Example: lacuisine.localhost -> 'lacuisine'
+  if (host.endsWith('.localhost')) {
+    const subdomain = host.replace('.localhost', '')
+    const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'test', 'staging', 'dev']
+    if (reserved.includes(subdomain.toLowerCase())) {
+      return null
+    }
+    return subdomain.toLowerCase()
+  }
+
+  // For plain localhost or 127.0.0.1, return null (use default behavior)
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return null
+  }
+
+  // Split by dots
+  const parts = host.split('.')
+
+  // If we have at least 3 parts (subdomain.domain.tld), extract subdomain
+  // Example: lacuisine.countpadi.com -> ['lacuisine', 'countpadi', 'com']
+  if (parts.length >= 3) {
+    const subdomain = parts[0]
+    // Reserved subdomains that should not be treated as organization subdomains
+    const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'test', 'staging', 'dev']
+    if (reserved.includes(subdomain.toLowerCase())) {
+      return null
+    }
+    return subdomain.toLowerCase()
+  }
+
+  return null
+}
 
 // Rate limiting: Simple in-memory store (for production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -36,6 +76,55 @@ function checkRateLimit(ip: string, limit: number = 100, windowMs: number = 6000
 }
 
 export async function middleware(request: NextRequest) {
+  // Subdomain detection (backward compatible - only activates if subdomain exists)
+  const hostname = request.headers.get('host') || ''
+  const subdomain = getSubdomain(hostname)
+
+  // Store organization ID from subdomain for validation
+  let orgIdFromSubdomain: string | null = null
+
+  // If subdomain exists, try to find organization and set context
+  if (subdomain) {
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        })
+
+        const { data: organization } = await supabaseAdmin
+          .from('organizations')
+          .select('id, name, subdomain')
+          .eq('subdomain', subdomain)
+          .single()
+
+        if (organization) {
+          // Store organization ID for validation
+          orgIdFromSubdomain = organization.id
+
+          // Set organization ID in headers for use in pages/components
+          const requestHeaders = new Headers(request.headers)
+          requestHeaders.set('x-organization-id', organization.id)
+          requestHeaders.set('x-organization-subdomain', subdomain)
+
+          // Continue with normal flow but with organization context
+          // The rest of the middleware will handle auth as usual
+        } else {
+          // Subdomain not found - could be invalid or not set up yet
+          // Continue with normal flow (don't block - backward compatible)
+        }
+      }
+    } catch (error) {
+      // If subdomain lookup fails, continue with normal flow (backward compatible)
+      console.error('Error looking up subdomain:', error)
+    }
+  }
+
   // Rate limiting for API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const ip =
@@ -134,9 +223,56 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // Get organization ID from subdomain (if any)
+    const orgIdFromSubdomain = request.headers.get('x-organization-id')
+
     if (request.nextUrl.pathname.startsWith('/dashboard')) {
       if (!user) {
         return NextResponse.redirect(new URL('/login', request.url))
+      }
+
+      // SECURITY: If accessing via subdomain, validate user belongs to that organization
+      // This works for both localhost subdomains (lacuisine.localhost) and production (lacuisine.countpadi.com)
+      if (orgIdFromSubdomain) {
+        try {
+          // Use service role key to bypass RLS for validation
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+          if (supabaseUrl && supabaseServiceKey) {
+            const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+              auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+              },
+            })
+
+            const { data: profile } = await supabaseAdmin
+              .from('profiles')
+              .select('organization_id, role')
+              .eq('id', user.id)
+              .single()
+
+            if (profile) {
+              // Block superadmin from accessing subdomain
+              if (profile.role === 'superadmin') {
+                return NextResponse.redirect(
+                  new URL('/login?error=superadmin_subdomain', request.url)
+                )
+              }
+
+              // Validate user belongs to the organization
+              if (profile.organization_id !== orgIdFromSubdomain) {
+                return NextResponse.redirect(
+                  new URL('/login?error=wrong_organization', request.url)
+                )
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error validating subdomain access:', error)
+          return NextResponse.redirect(new URL('/login?error=validation_failed', request.url))
+        }
       }
     }
 
@@ -144,9 +280,62 @@ export async function middleware(request: NextRequest) {
       if (!user) {
         return NextResponse.redirect(new URL('/login', request.url))
       }
+
+      // SECURITY: Block subdomain access to admin pages
+      if (orgIdFromSubdomain) {
+        return NextResponse.redirect(
+          new URL('/login?error=admin_subdomain', request.url)
+        )
+      }
     }
 
     if (request.nextUrl.pathname === '/login' && user) {
+      // If user is logged in and accessing via subdomain, validate they belong to it
+      if (orgIdFromSubdomain) {
+        try {
+          // Use service role key to bypass RLS for validation
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+          if (supabaseUrl && supabaseServiceKey) {
+            const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+              auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+              },
+            })
+
+            const { data: profile } = await supabaseAdmin
+              .from('profiles')
+              .select('organization_id, role')
+              .eq('id', user.id)
+              .single()
+
+            if (profile) {
+              // Block superadmin
+              if (profile.role === 'superadmin') {
+                // Sign out using the regular supabase client
+                await supabase.auth.signOut()
+                return NextResponse.redirect(
+                  new URL('/login?error=superadmin_subdomain', request.url)
+                )
+              }
+
+              // Validate organization match
+              if (profile.organization_id !== orgIdFromSubdomain) {
+                // Sign out using the regular supabase client
+                await supabase.auth.signOut()
+                return NextResponse.redirect(
+                  new URL('/login?error=wrong_organization', request.url)
+                )
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error validating subdomain access:', error)
+        }
+      }
+
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 

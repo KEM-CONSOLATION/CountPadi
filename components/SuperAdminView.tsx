@@ -34,11 +34,14 @@ export default function SuperAdminView() {
   const [editingBranding, setEditingBranding] = useState<string | null>(null)
   const [editingBusinessType, setEditingBusinessType] = useState<string | null>(null)
   const [editingStockTimes, setEditingStockTimes] = useState<string | null>(null)
+  const [editingSubdomain, setEditingSubdomain] = useState<string | null>(null)
   const [businessTypeData, setBusinessTypeData] = useState({ business_type: '' })
   const [stockTimesData, setStockTimesData] = useState({ opening_time: '', closing_time: '' })
+  const [subdomainData, setSubdomainData] = useState({ subdomain: '' })
   const [newOrg, setNewOrg] = useState({
     name: '',
     business_type: '',
+    subdomain: '',
     adminEmail: '',
     adminPassword: '',
     adminName: '',
@@ -211,6 +214,7 @@ export default function SuperAdminView() {
         body: JSON.stringify({
           name: newOrg.name,
           business_type: newOrg.business_type || null,
+          subdomain: newOrg.subdomain || null,
           user_id: user.id,
         }),
       })
@@ -238,7 +242,14 @@ export default function SuperAdminView() {
       }
 
       setMessage({ type: 'success', text: 'Organization and admin created successfully' })
-      setNewOrg({ name: '', business_type: '', adminEmail: '', adminPassword: '', adminName: '' })
+      setNewOrg({
+        name: '',
+        business_type: '',
+        subdomain: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminName: '',
+      })
       setActiveTab('organizations')
       fetchOrganizations()
     } catch (error) {
@@ -353,6 +364,52 @@ export default function SuperAdminView() {
     }
   }
 
+  const handleUpdateSubdomain = async (orgId: string) => {
+    setCreating(true)
+    setMessage(null)
+
+    try {
+      const org = organizations.find(o => o.id === orgId)
+      if (!org) throw new Error('Organization not found')
+
+      // Show warning if subdomain is being changed (not just set for first time)
+      if (org.subdomain && subdomainData.subdomain !== org.subdomain) {
+        const confirmed = confirm(
+          'Warning: Changing the subdomain will break existing links and bookmarks. Are you sure you want to continue?'
+        )
+        if (!confirmed) {
+          setCreating(false)
+          return
+        }
+      }
+
+      const response = await fetch('/api/organizations/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_id: orgId,
+          name: org.name,
+          subdomain: subdomainData.subdomain || null,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update subdomain')
+
+      setMessage({ type: 'success', text: 'Subdomain updated successfully' })
+      setEditingSubdomain(null)
+      setSubdomainData({ subdomain: '' })
+      fetchOrganizations()
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to update subdomain',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const handleUpdateBranding = async (orgId: string) => {
     // Validate brand color format if provided
     if (brandingData.brand_color && !/^#[0-9A-Fa-f]{6}$/.test(brandingData.brand_color)) {
@@ -454,7 +511,14 @@ export default function SuperAdminView() {
       if (!response.ok) throw new Error(data.error || 'Failed to create admin')
 
       setMessage({ type: 'success', text: 'Admin created successfully' })
-      setNewOrg({ name: '', business_type: '', adminEmail: '', adminPassword: '', adminName: '' })
+      setNewOrg({
+        name: '',
+        business_type: '',
+        subdomain: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminName: '',
+      })
       setSelectedOrg(null)
       fetchOrganizations()
     } catch (error) {
@@ -732,6 +796,11 @@ export default function SuperAdminView() {
                                 org.business_type.slice(1)}
                             </span>
                           )}
+                          {org.subdomain && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                              {org.subdomain}.countpadi.com
+                            </span>
+                          )}
                           <span>Users: {org.metrics?.total_users || 0}</span>
                           <span>Items: {org.metrics?.total_items || 0}</span>
                           <span>Sales: {org.metrics?.total_sales || 0}</span>
@@ -774,6 +843,18 @@ export default function SuperAdminView() {
                               className="px-3 py-1 cursor-pointer text-xs text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
                             >
                               Business Type
+                            </button>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                setEditingSubdomain(org.id)
+                                setSubdomainData({
+                                  subdomain: org.subdomain || '',
+                                })
+                              }}
+                              className="px-3 py-1 cursor-pointer text-xs text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                            >
+                              Subdomain
                             </button>
                             <button
                               onClick={e => {
@@ -932,6 +1013,57 @@ export default function SuperAdminView() {
                                 onClick={() => {
                                   setEditingStockTimes(null)
                                   setStockTimesData({ opening_time: '', closing_time: '' })
+                                }}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      {editingSubdomain === org.id ? (
+                        <div className="mb-6 p-4 bg-purple-50 rounded-lg">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                            Edit Subdomain
+                          </h4>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Subdomain
+                              </label>
+                              <input
+                                type="text"
+                                value={subdomainData.subdomain}
+                                onChange={e => {
+                                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                                  setSubdomainData({ subdomain: value })
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="lacuisine"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Subdomain for {org.subdomain ? 'updating' : 'creating'}{' '}
+                                {subdomainData.subdomain || 'subdomain'}.countpadi.com. Leave empty
+                                to remove subdomain.
+                              </p>
+                              {org.subdomain && subdomainData.subdomain !== org.subdomain && (
+                                <p className="mt-2 text-xs text-orange-600 font-medium">
+                                  ⚠️ Changing subdomain will break existing links and bookmarks
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleUpdateSubdomain(org.id)}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm cursor-pointer"
+                              >
+                                Save Subdomain
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSubdomain(null)
+                                  setSubdomainData({ subdomain: '' })
                                 }}
                                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
                               >
@@ -1315,6 +1447,25 @@ export default function SuperAdminView() {
                 <option value="retail">Retail</option>
                 <option value="other">Other</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subdomain (Optional)
+              </label>
+              <input
+                type="text"
+                value={newOrg.subdomain}
+                onChange={e => {
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                  setNewOrg({ ...newOrg, subdomain: value })
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="lacuisine"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional: Custom subdomain (e.g., "lacuisine" for lacuisine.countpadi.com). Leave
+                blank to auto-generate from organization name.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
