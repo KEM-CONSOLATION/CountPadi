@@ -127,8 +127,9 @@ function LoginForm() {
     try {
       // Get subdomain from hostname if accessing via subdomain
       const hostname = window.location.hostname
+      const isNetlifyHost = hostname.endsWith('netlify.app')
       let subdomain: string | null = null
-      if (hostname.endsWith('netlify.app')) {
+      if (isNetlifyHost) {
         // On Netlify default domain, treat as no subdomain (fallback branding and flow)
         subdomain = null
       }
@@ -136,7 +137,7 @@ function LoginForm() {
       // Check for localhost subdomains
       if (hostname.endsWith('.localhost')) {
         subdomain = hostname.replace('.localhost', '').split(':')[0].toLowerCase()
-      } else {
+      } else if (!isNetlifyHost) {
         // Check for production subdomains (subdomain.domain.tld)
         const parts = hostname.split('.')
         if (parts.length >= 3) {
