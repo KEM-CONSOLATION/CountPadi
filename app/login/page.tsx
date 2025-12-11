@@ -26,12 +26,12 @@ function LoginForm() {
         // Get subdomain from hostname
         const hostname = window.location.hostname
         const parts = hostname.split('.')
-        
+
         // Check for localhost subdomains (local testing)
         // Example: lacuisine.localhost -> 'lacuisine'
         if (hostname.endsWith('.localhost')) {
           const subdomain = hostname.replace('.localhost', '').split(':')[0].toLowerCase()
-          
+
           // Skip reserved subdomains
           const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'test', 'staging', 'dev']
           if (reserved.includes(subdomain)) {
@@ -62,7 +62,7 @@ function LoginForm() {
         // Check if we have a subdomain (at least 3 parts: subdomain.domain.tld)
         if (parts.length >= 3) {
           const subdomain = parts[0].toLowerCase()
-          
+
           // Skip reserved subdomains
           const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'test', 'staging', 'dev']
           if (reserved.includes(subdomain)) {
@@ -102,7 +102,7 @@ function LoginForm() {
       )
     } else if (errorParam === 'wrong_organization' && !error) {
       setError(
-        'Access denied. Your account does not belong to this organization. Please login through your organization\'s subdomain.'
+        "Access denied. Your account does not belong to this organization. Please login through your organization's subdomain."
       )
     } else if (errorParam === 'admin_subdomain' && !error) {
       setError(
@@ -123,7 +123,7 @@ function LoginForm() {
       // Get subdomain from hostname if accessing via subdomain
       const hostname = window.location.hostname
       let subdomain: string | null = null
-      
+
       // Check for localhost subdomains
       if (hostname.endsWith('.localhost')) {
         subdomain = hostname.replace('.localhost', '').split(':')[0].toLowerCase()
@@ -206,7 +206,7 @@ function LoginForm() {
         if (profile.organization_id !== expectedOrgId) {
           await supabase.auth.signOut()
           setError(
-            'Access denied. Your account does not belong to this organization. Please login through your organization\'s subdomain or contact an administrator.'
+            "Access denied. Your account does not belong to this organization. Please login through your organization's subdomain or contact an administrator."
           )
           setLoading(false)
           return
@@ -261,24 +261,24 @@ function LoginForm() {
     const r = parseInt(color.slice(1, 3), 16)
     const g = parseInt(color.slice(3, 5), 16)
     const b = parseInt(color.slice(5, 7), 16)
-    
+
     // Create lighter version for gradient
     const lightR = Math.min(255, r + 50)
     const lightG = Math.min(255, g + 50)
     const lightB = Math.min(255, b + 50)
-    
+
     return {
       from: `rgb(${r}, ${g}, ${b})`,
       to: `rgb(${lightR}, ${lightG}, ${lightB})`,
     }
   }
 
-  const gradientColors = organization?.brand_color 
+  const gradientColors = organization?.brand_color
     ? getGradientColors(brandColor)
     : { from: 'rgb(239, 246, 255)', to: 'rgb(224, 231, 255)' } // Default blue-50 to indigo-100
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
         background: `linear-gradient(to bottom right, ${gradientColors.from}, ${gradientColors.to})`,
@@ -416,7 +416,9 @@ function LoginForm() {
           <div className="flex flex-col items-center gap-2 text-sm text-gray-500">
             {organization?.subdomain ? (
               <div className="text-center">
-                <span className="font-medium text-gray-700">{organization.subdomain}.countpadi.com</span>
+                <span className="font-medium text-gray-700">
+                  {organization.subdomain}.countpadi.com
+                </span>
                 <span className="mx-2">·</span>
                 <span>Powered by CountPadi</span>
               </div>

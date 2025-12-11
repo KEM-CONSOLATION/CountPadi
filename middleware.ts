@@ -283,9 +283,7 @@ export async function middleware(request: NextRequest) {
 
       // SECURITY: Block subdomain access to admin pages
       if (orgIdFromSubdomain) {
-        return NextResponse.redirect(
-          new URL('/login?error=admin_subdomain', request.url)
-        )
+        return NextResponse.redirect(new URL('/login?error=admin_subdomain', request.url))
       }
     }
 

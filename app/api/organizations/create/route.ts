@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       .replace(/^-+|-+$/g, '')
 
     // Generate subdomain from name if not provided
-    const generateSubdomain = (orgName: string): string => {
+    const generateSubdomain = (orgName: string): string | null => {
       let generated = orgName
         .toLowerCase()
         .trim()

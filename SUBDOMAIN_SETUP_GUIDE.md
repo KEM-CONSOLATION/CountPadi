@@ -7,6 +7,7 @@ This guide explains how to set up subdomain routing so each organization gets it
 ## Overview
 
 The subdomain setup allows:
+
 - Each organization to have a custom subdomain (e.g., `lacuisine.countpadi.com`)
 - Automatic organization detection based on subdomain
 - Seamless user experience with branded URLs
@@ -50,7 +51,7 @@ export interface Organization {
   business_type?: string | null
   opening_time?: string | null
   closing_time?: string | null
-  subdomain?: string | null  // Add this
+  subdomain?: string | null // Add this
 }
 ```
 
@@ -75,19 +76,16 @@ if (subdomain) {
       { status: 400 }
     )
   }
-  
+
   // Check if subdomain already exists
   const { data: existing } = await supabaseAdmin
     .from('organizations')
     .select('id')
     .eq('subdomain', subdomain)
     .single()
-    
+
   if (existing) {
-    return NextResponse.json(
-      { error: 'Subdomain already taken' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Subdomain already taken' }, { status: 400 })
   }
 }
 
@@ -99,7 +97,7 @@ const { data: organization, error: orgError } = await supabaseAdmin
     slug,
     created_by: user_id,
     business_type: business_type || null,
-    subdomain: subdomain || null,  // Add this
+    subdomain: subdomain || null, // Add this
   })
   .select()
   .single()
@@ -111,7 +109,16 @@ Add subdomain update logic:
 
 ```typescript
 // In the PUT handler:
-const { organization_id, name, logo_url, brand_color, business_type, opening_time, closing_time, subdomain } = body
+const {
+  organization_id,
+  name,
+  logo_url,
+  brand_color,
+  business_type,
+  opening_time,
+  closing_time,
+  subdomain,
+} = body
 
 // Validate subdomain if provided
 if (subdomain !== undefined) {
@@ -123,7 +130,7 @@ if (subdomain !== undefined) {
         { status: 400 }
       )
     }
-    
+
     // Check if subdomain is taken by another organization
     const { data: existing } = await supabaseAdmin
       .from('organizations')
@@ -131,12 +138,9 @@ if (subdomain !== undefined) {
       .eq('subdomain', subdomain)
       .neq('id', organization_id)
       .single()
-      
+
     if (existing) {
-      return NextResponse.json(
-        { error: 'Subdomain already taken' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Subdomain already taken' }, { status: 400 })
     }
     updateData.subdomain = subdomain
   } else {
@@ -163,27 +167,27 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 function getSubdomain(hostname: string): string | null {
   // Remove port if present
   const host = hostname.split(':')[0]
-  
+
   // For localhost, return null (use default behavior)
   if (host === 'localhost' || host === '127.0.0.1') {
     return null
   }
-  
+
   // Split by dots
   const parts = host.split('.')
-  
+
   // If we have at least 3 parts (subdomain.domain.tld), extract subdomain
   if (parts.length >= 3) {
     return parts[0]
   }
-  
+
   return null
 }
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const subdomain = getSubdomain(hostname)
-  
+
   // If subdomain exists, look up organization
   if (subdomain) {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -192,19 +196,19 @@ export async function middleware(request: NextRequest) {
         persistSession: false,
       },
     })
-    
+
     const { data: organization } = await supabaseAdmin
       .from('organizations')
       .select('id, name, subdomain')
       .eq('subdomain', subdomain)
       .single()
-    
+
     if (organization) {
       // Set organization ID in headers for use in pages
       const requestHeaders = new Headers(request.headers)
       requestHeaders.set('x-organization-id', organization.id)
       requestHeaders.set('x-organization-subdomain', subdomain)
-      
+
       return NextResponse.next({
         request: {
           headers: requestHeaders,
@@ -217,7 +221,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
   }
-  
+
   // No subdomain - continue with normal flow
   return NextResponse.next()
 }
@@ -250,7 +254,7 @@ initialize: async (organizationId: string | null) => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     const subdomain = getSubdomain(hostname)
-    
+
     if (subdomain) {
       // Fetch organization by subdomain
       const { supabase } = await import('@/lib/supabase/client')
@@ -259,7 +263,7 @@ initialize: async (organizationId: string | null) => {
         .select('*')
         .eq('subdomain', subdomain)
         .single()
-        
+
       if (orgBySubdomain) {
         set({
           organization: orgBySubdomain,
@@ -270,13 +274,13 @@ initialize: async (organizationId: string | null) => {
       }
     }
   }
-  
+
   // Fallback to organizationId from user profile
   if (!organizationId) {
     set({ organization: null, loading: false, initialized: true })
     return
   }
-  
+
   // ... rest of existing code
 }
 ```
@@ -361,11 +365,13 @@ TTL: 3600
 ```
 
 **For Vercel:**
+
 - Go to your domain settings in Vercel
 - Add `*.countpadi.com` as a domain
 - Vercel will automatically handle all subdomains
 
 **For other providers:**
+
 - Add a wildcard A record: `*.countpadi.com` → Your server IP
 - Or CNAME: `*.countpadi.com` → Your server hostname
 
@@ -387,15 +393,19 @@ This is less scalable but gives you more control.
 ## Step 7: SSL Certificate Setup
 
 ### For Vercel:
+
 Vercel automatically provisions SSL certificates for all subdomains when you add the wildcard domain.
 
 ### For Custom Server:
+
 You'll need a wildcard SSL certificate:
+
 - **Let's Encrypt**: Use certbot with DNS challenge for wildcard certificates
 - **Cloudflare**: Free SSL for all subdomains if you use Cloudflare DNS
 - **Commercial**: Purchase a wildcard SSL certificate
 
 Example with Let's Encrypt:
+
 ```bash
 certbot certonly --manual --preferred-challenges dns -d *.countpadi.com -d countpadi.com
 ```
@@ -419,6 +429,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key
 ### Local Testing
 
 1. **Update `/etc/hosts` (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` (Windows):**
+
    ```
    127.0.0.1 lacuisine.localhost
    127.0.0.1 testorg.localhost
@@ -454,6 +465,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key
 5. Configure reverse proxy to forward all subdomains to Next.js
 
 **Nginx Example:**
+
 ```nginx
 server {
     listen 80;
@@ -464,10 +476,10 @@ server {
 server {
     listen 443 ssl http2;
     server_name *.countpadi.com countpadi.com;
-    
+
     ssl_certificate /path/to/wildcard.crt;
     ssl_certificate_key /path/to/wildcard.key;
-    
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -494,17 +506,20 @@ server {
 ## Troubleshooting
 
 ### Subdomain Not Working
+
 - Check DNS propagation: `dig lacuisine.countpadi.com`
 - Verify SSL certificate includes wildcard
 - Check middleware is running correctly
 - Verify organization has subdomain set in database
 
 ### Organization Not Found
+
 - Check subdomain spelling matches database
 - Verify organization has `subdomain` field populated
 - Check middleware logs for errors
 
 ### SSL Certificate Issues
+
 - Ensure wildcard certificate is installed
 - Verify certificate includes `*.countpadi.com`
 - Check certificate expiration date
@@ -528,13 +543,17 @@ server {
 ## Additional Features (Optional)
 
 ### Custom Domain Support
+
 Allow organizations to use their own domain (e.g., `app.lacuisine.com`):
+
 - Add `custom_domain` field to organizations
 - Update DNS validation
 - Handle domain verification
 
 ### Subdomain Suggestions
+
 Auto-generate subdomain suggestions from organization name:
+
 ```typescript
 function generateSubdomain(name: string): string {
   return name
@@ -546,4 +565,3 @@ function generateSubdomain(name: string): string {
     .substring(0, 63)
 }
 ```
-

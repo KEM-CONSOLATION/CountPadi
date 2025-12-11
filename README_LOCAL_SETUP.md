@@ -9,6 +9,7 @@ Run the setup script:
 ```
 
 This will add the following entries to your `/etc/hosts` file:
+
 - `lacuisine.localhost`
 - `testorg.localhost`
 - `demo.localhost`
@@ -37,7 +38,7 @@ If you prefer to do it manually:
 ## Removing Subdomains
 
 To remove the entries later:
+
 1. Run: `sudo nano /etc/hosts`
 2. Find and delete the lines with `lacuisine.localhost`, `testorg.localhost`, `demo.localhost`
 3. Save and exit
-

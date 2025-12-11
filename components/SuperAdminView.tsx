@@ -1036,7 +1036,9 @@ export default function SuperAdminView() {
                                 type="text"
                                 value={subdomainData.subdomain}
                                 onChange={e => {
-                                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                                  const value = e.target.value
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9-]/g, '')
                                   setSubdomainData({ subdomain: value })
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -1527,6 +1529,7 @@ export default function SuperAdminView() {
                   setNewOrg({
                     name: '',
                     business_type: '',
+                    subdomain: '',
                     adminEmail: '',
                     adminPassword: '',
                     adminName: '',
@@ -1615,6 +1618,7 @@ export default function SuperAdminView() {
                   setNewOrg({
                     name: '',
                     business_type: '',
+                    subdomain: '',
                     adminEmail: '',
                     adminPassword: '',
                     adminName: '',

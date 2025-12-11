@@ -630,7 +630,9 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             <div className="flex items-center gap-2">
               {organization?.subdomain ? (
                 <span>
-                  <span className="font-medium text-gray-700">{organization.subdomain}.countpadi.com</span>
+                  <span className="font-medium text-gray-700">
+                    {organization.subdomain}.countpadi.com
+                  </span>
                   <span className="mx-2">·</span>
                   <span>Powered by CountPadi</span>
                 </span>
