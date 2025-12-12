@@ -1328,6 +1328,15 @@ export default function SalesForm() {
 
               setDate(selectedDate)
               setMessage(null)
+              
+              // Force refresh opening stock and restocking for the new date
+              const normalizedDate = normalizeDate(selectedDate)
+              if (normalizedDate && /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+                // Force refresh to get latest data for the selected date
+                fetchOpeningStockFromStore(normalizedDate, organizationId, branchId, true)
+                fetchRestockingFromStore(normalizedDate, organizationId, branchId)
+                fetchSalesFromStore(normalizedDate, organizationId, branchId)
+              }
             }}
             max={format(new Date(), 'yyyy-MM-dd')}
             required
@@ -1420,10 +1429,30 @@ export default function SalesForm() {
                   itemsInMap: itemMap.size,
                   date: normalizedDate,
                   branchId,
+                  sampleQuantities: Array.from(itemMap.values()).slice(0, 5).map(os => ({
+                    item: os.item?.name,
+                    quantity: os.quantity,
+                    branch_id: os.branch_id,
+                    date: os.date,
+                    normalizedDate: normalizeDate(os.date),
+                  })),
+                })
+              } else {
+                console.warn('[SalesForm] No relevant opening stocks found:', {
+                  totalOpeningStocks: openingStocks.length,
+                  selectedDate: date,
+                  normalizedDate,
+                  branchId,
+                  sampleDates: openingStocks.slice(0, 3).map(os => ({
+                    date: os.date,
+                    normalized: normalizeDate(os.date),
+                    branch_id: os.branch_id,
+                  })),
                 })
               }
 
-              return Array.from(itemMap.values())
+              // Sort items: Available stock > 0 first (alphabetically), then zero stock (alphabetically)
+              const itemsWithData = Array.from(itemMap.values())
                 .map(openingStock => {
                   const item = openingStock.item
                   if (!item) return null
@@ -1434,6 +1463,17 @@ export default function SalesForm() {
                   if (openingStock.quantity !== null && openingStock.quantity !== undefined) {
                     const qtyStr = openingStock.quantity.toString()
                     openingQty = parseFloat(qtyStr) || 0
+                  }
+
+                  // Debug: Log if quantity is 0 but opening stock exists
+                  if (openingQty === 0 && openingStock.quantity !== null && openingStock.quantity !== undefined) {
+                    console.warn(`[SalesForm] ${item.name} has opening stock record but quantity is 0:`, {
+                      openingStockId: openingStock.id,
+                      rawQuantity: openingStock.quantity,
+                      parsedQuantity: openingQty,
+                      date: openingStock.date,
+                      branch_id: openingStock.branch_id,
+                    })
                   }
 
                   // Restocking from store - prefer branch-specific, fallback to NULL branch_id
@@ -1518,13 +1558,27 @@ export default function SalesForm() {
                       ? `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty}, Restocked: ${totalRestocking})`
                       : `${item.name} (${item.unit}) - Available: ${available > 0 ? available : 0} (Opening Stock: ${openingQty})`
 
-                  return (
-                    <option key={item.id} value={item.id} className=" capitalize!">
-                      {displayText}
-                    </option>
-                  )
+                  return {
+                    item,
+                    openingStock,
+                    available,
+                    displayText,
+                  }
                 })
                 .filter(Boolean) // Remove null entries
+                .sort((a, b) => {
+                  // First, sort by available stock: items with stock > 0 come first
+                  if (a.available > 0 && b.available === 0) return -1
+                  if (a.available === 0 && b.available > 0) return 1
+                  // If both have stock or both are zero, sort alphabetically by item name
+                  return a.item.name.localeCompare(b.item.name, undefined, { sensitivity: 'base' })
+                })
+
+              return itemsWithData.map(({ item, displayText }) => (
+                <option key={item.id} value={item.id} className=" capitalize!">
+                  {displayText}
+                </option>
+              ))
             })()}
           </select>
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -1554,11 +1608,34 @@ export default function SalesForm() {
             >
               Refresh Items List
             </button>
-            {items.length > 0 && (
-              <span id="item-help" className="text-xs text-gray-500">
-                ({items.length} items loaded)
-              </span>
-            )}
+            {(() => {
+              const normalizedDate = normalizeDate(date)
+              const relevantOpeningStocks = openingStocks.filter(os => {
+                const osDate = normalizeDate(os.date)
+                if (branchId) {
+                  return (
+                    osDate === normalizedDate &&
+                    (os.branch_id === branchId || os.branch_id === null)
+                  )
+                }
+                return osDate === normalizedDate && os.branch_id === null
+              })
+              const itemMap = new Map<string, (typeof relevantOpeningStocks)[0]>()
+              relevantOpeningStocks.forEach(os => {
+                if (!os.item) return
+                const existing = itemMap.get(os.item.id)
+                if (!existing || (os.branch_id === branchId && existing.branch_id !== branchId)) {
+                  itemMap.set(os.item.id, os)
+                }
+              })
+              const itemsWithOpeningStock = itemMap.size
+              
+              return items.length > 0 && (
+                <span id="item-help" className="text-xs text-gray-500">
+                  ({itemsWithOpeningStock} of {items.length} items with opening stock for {normalizedDate})
+                </span>
+              )
+            })()}
           </div>
           {isPastDate && openingStocks.length === 0 && (
             <p className="mt-1 text-xs text-red-500">
@@ -1638,7 +1715,7 @@ export default function SalesForm() {
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500">
-                    💡 Tip: Select a different batch if the auto-selected one doesn't have enough
+                    💡 Tip: Select a different batch if the auto-selected one doesn&apos;t have enough
                     quantity
                   </p>
                 </div>

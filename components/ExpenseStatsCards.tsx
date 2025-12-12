@@ -18,7 +18,7 @@ export default function ExpenseStatsCards() {
   useEffect(() => {
     if (organizationId !== null) {
       // Only fetch if organizationId is loaded (null means not loaded yet, undefined means no org)
-      fetchStats()
+    fetchStats()
     }
   }, [startDate, endDate, organizationId])
 
