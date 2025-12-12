@@ -19,7 +19,11 @@ export default function ProfitLossStatsCards() {
   const { organizationId, profile } = useAuth() // Use centralized auth
 
   useEffect(() => {
-    if (organizationId !== null && profile?.role && ['branch_manager', 'admin', 'tenant_admin'].includes(profile.role)) {
+    if (
+      organizationId !== null &&
+      profile?.role &&
+      ['branch_manager', 'admin', 'tenant_admin'].includes(profile.role)
+    ) {
       fetchStats()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,7 +35,6 @@ export default function ProfitLossStatsCards() {
     setLoading(true)
 
     try {
-
       if (startDate > endDate) {
         setEndDate(startDate)
         return

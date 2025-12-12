@@ -17,15 +17,17 @@ export async function POST(request: NextRequest) {
     const { notifications } = body
 
     if (!notifications || !Array.isArray(notifications) || notifications.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing or invalid notifications array' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing or invalid notifications array' }, { status: 400 })
     }
 
     // Validate all notifications have required fields
     for (const notification of notifications) {
-      if (!notification.user_id || !notification.type || !notification.title || !notification.message) {
+      if (
+        !notification.user_id ||
+        !notification.type ||
+        !notification.title ||
+        !notification.message
+      ) {
         return NextResponse.json(
           { error: 'All notifications must have: user_id, type, title, message' },
           { status: 400 }
@@ -34,20 +36,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Batch insert all notifications in a single database call
-    const { data, error } = await supabaseAdmin
-      .from('notifications')
-      .insert(notifications)
-      .select()
+    const { data, error } = await supabaseAdmin.from('notifications').insert(notifications).select()
 
     if (error) {
       console.error('Error creating batch notifications:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(
-      { notifications: data, count: data?.length || 0 },
-      { status: 201 }
-    )
+    return NextResponse.json({ notifications: data, count: data?.length || 0 }, { status: 201 })
   } catch (error) {
     console.error('Error in batch notification creation:', error)
     return NextResponse.json(

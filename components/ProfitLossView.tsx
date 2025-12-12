@@ -47,7 +47,6 @@ export default function ProfitLossView() {
 
     setLoading(true)
     try {
-
       // Validate date range
       if (startDate > endDate) {
         setEndDate(startDate)

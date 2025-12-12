@@ -104,17 +104,25 @@ export async function POST(request: NextRequest) {
       // If RPC doesn't exist, do manual updates (fallback)
       if (assignError) {
         console.warn('RPC function not found, using manual assignment:', assignError)
-        
+
         // Manually assign NULL branch_id records to this branch
-        const tables = ['items', 'opening_stock', 'closing_stock', 'sales', 'expenses', 'restocking', 'waste_spoilage']
-        
+        const tables = [
+          'items',
+          'opening_stock',
+          'closing_stock',
+          'sales',
+          'expenses',
+          'restocking',
+          'waste_spoilage',
+        ]
+
         for (const table of tables) {
           const { error: updateError } = await supabase
             .from(table)
             .update({ branch_id: branch.id })
             .eq('organization_id', targetOrganizationId)
             .is('branch_id', null)
-          
+
           if (updateError && !updateError.message.includes('does not exist')) {
             console.warn(`Failed to assign ${table} to branch:`, updateError)
           }

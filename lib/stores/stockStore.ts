@@ -122,6 +122,7 @@ export const useStockStore = create<StockState>((set, get) => ({
           branch_id,
           organization_id,
           notes,
+          recorded_by,
           created_at,
           item:items(id, name, unit, description, cost_price, selling_price)
         `
@@ -153,34 +154,68 @@ export const useStockStore = create<StockState>((set, get) => ({
         throw error
       }
 
-      // If items are missing from join, fetch them separately
-      let openingStocksWithItems = data || []
+      // Normalize data: handle case where Supabase join returns item as array
+      // Also ensure all required OpeningStock fields are present
+      let openingStocksWithItems: (OpeningStock & { item?: Item })[] = (data || []).map(
+        (os: any) => {
+          // Handle case where item might be an array (Supabase join quirk)
+          let item: Item | undefined = undefined
+          if (os.item) {
+            item = Array.isArray(os.item) ? os.item[0] : os.item
+          }
+
+          return {
+            id: os.id,
+            item_id: os.item_id,
+            quantity: os.quantity,
+            date: os.date,
+            recorded_by: os.recorded_by || '',
+            notes: os.notes,
+            cost_price: os.cost_price,
+            selling_price: os.selling_price,
+            organization_id: os.organization_id,
+            branch_id: os.branch_id,
+            created_at: os.created_at,
+            item: item,
+          } as OpeningStock & { item?: Item }
+        }
+      )
+
       const missingItemIds = openingStocksWithItems
         .filter(os => !os.item && os.item_id)
         .map(os => os.item_id)
-      
+
       if (missingItemIds.length > 0) {
-        console.warn(`[Opening Stock] ${missingItemIds.length} records missing item data, fetching separately...`)
+        console.warn(
+          `[Opening Stock] ${missingItemIds.length} records missing item data, fetching separately...`
+        )
         const { data: missingItems } = await supabase
           .from('items')
-          .select('id, name, unit, description, cost_price, selling_price')
+          .select('*')
           .in('id', missingItemIds)
-        
+
         if (missingItems) {
           const itemsMap = new Map(missingItems.map(item => [item.id, item]))
-          openingStocksWithItems = openingStocksWithItems.map(os => ({
-            ...os,
-            item: os.item || itemsMap.get(os.item_id) || null,
-          }))
+          openingStocksWithItems = openingStocksWithItems.map(os => {
+            const missingItem = itemsMap.get(os.item_id)
+            return {
+              ...os,
+              item: os.item || (missingItem ? (missingItem as Item) : undefined),
+            }
+          })
         }
       }
 
       // Log for debugging (can be removed in production)
       if (openingStocksWithItems.length > 0) {
         const withItems = openingStocksWithItems.filter(os => os.item).length
-        console.log(`[Opening Stock] Fetched ${openingStocksWithItems.length} records (${withItems} with items) for date ${date}, branch: ${branchId || 'null'}`)
+        console.log(
+          `[Opening Stock] Fetched ${openingStocksWithItems.length} records (${withItems} with items) for date ${date}, branch: ${branchId || 'null'}`
+        )
       } else {
-        console.log(`[Opening Stock] No records found for date ${date}, branch: ${branchId || 'null'}`)
+        console.log(
+          `[Opening Stock] No records found for date ${date}, branch: ${branchId || 'null'}`
+        )
       }
 
       set(prev => ({
@@ -239,6 +274,7 @@ export const useStockStore = create<StockState>((set, get) => ({
           branch_id,
           organization_id,
           notes,
+          recorded_by,
           created_at,
           item:items(id, name, unit, description, cost_price, selling_price)
         `
@@ -265,8 +301,31 @@ export const useStockStore = create<StockState>((set, get) => ({
 
       if (error) throw error
 
+      // Normalize data: handle case where Supabase join returns item as array
+      const closingStocksWithItems: (ClosingStock & { item?: Item })[] = (data || []).map(
+        (cs: any) => {
+          let item: Item | undefined = undefined
+          if (cs.item) {
+            item = Array.isArray(cs.item) ? cs.item[0] : cs.item
+          }
+
+          return {
+            id: cs.id,
+            item_id: cs.item_id,
+            quantity: cs.quantity,
+            date: cs.date,
+            recorded_by: cs.recorded_by || '',
+            notes: cs.notes,
+            organization_id: cs.organization_id,
+            branch_id: cs.branch_id,
+            created_at: cs.created_at,
+            item: item,
+          } as ClosingStock & { item?: Item }
+        }
+      )
+
       set(prev => ({
-        closingStocks: data || [],
+        closingStocks: closingStocksWithItems,
         loading: { ...prev.loading, closing: false },
         lastFetched: { ...prev.lastFetched, closing: now },
         lastFetchedDate: { ...prev.lastFetchedDate, closing: date },
@@ -321,6 +380,7 @@ export const useStockStore = create<StockState>((set, get) => ({
           branch_id,
           organization_id,
           notes,
+          recorded_by,
           created_at,
           item:items(id, name, unit, description, cost_price, selling_price)
         `
@@ -347,8 +407,31 @@ export const useStockStore = create<StockState>((set, get) => ({
 
       if (error) throw error
 
+      // Normalize data: handle case where Supabase join returns item as array
+      const restockingsWithItems: (Restocking & { item?: Item })[] = (data || []).map((r: any) => {
+        let item: Item | undefined = undefined
+        if (r.item) {
+          item = Array.isArray(r.item) ? r.item[0] : r.item
+        }
+
+        return {
+          id: r.id,
+          item_id: r.item_id,
+          quantity: r.quantity,
+          date: r.date,
+          recorded_by: r.recorded_by || '',
+          notes: r.notes,
+          cost_price: r.cost_price,
+          selling_price: r.selling_price,
+          organization_id: r.organization_id,
+          branch_id: r.branch_id,
+          created_at: r.created_at,
+          item: item,
+        } as Restocking & { item?: Item }
+      })
+
       set(prev => ({
-        restockings: data || [],
+        restockings: restockingsWithItems,
         loading: { ...prev.loading, restocking: false },
         lastFetched: { ...prev.lastFetched, restocking: now },
         lastFetchedDate: { ...prev.lastFetchedDate, restocking: date },

@@ -46,11 +46,11 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
         .select('id')
         .gte('date', startDate)
         .lte('date', endDate)
-      
+
       if (organizationId) {
         openingQuery = openingQuery.eq('organization_id', organizationId)
       }
-      
+
       // Apply branch filtering: include branch-specific AND NULL branch_id (for legacy data fallback)
       if (branchId !== undefined && branchId !== null) {
         openingQuery = openingQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
@@ -58,7 +58,7 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
         // Explicitly query for NULL branch_id only (for organizations without branches yet)
         openingQuery = openingQuery.is('branch_id', null)
       }
-      
+
       const { data: openingData } = await openingQuery
 
       // Fetch closing stock count for date range
@@ -68,18 +68,18 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
         .select('id')
         .gte('date', startDate)
         .lte('date', endDate)
-      
+
       if (organizationId) {
         closingQuery = closingQuery.eq('organization_id', organizationId)
       }
-      
+
       // Apply branch filtering: include branch-specific AND NULL branch_id (for legacy data fallback)
       if (branchId !== undefined && branchId !== null) {
         closingQuery = closingQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
       } else if (branchId === null) {
         closingQuery = closingQuery.is('branch_id', null)
       }
-      
+
       const { data: closingData } = await closingQuery
 
       // Fetch sales for date range
@@ -89,18 +89,18 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
         .select('total_price')
         .gte('date', startDate)
         .lte('date', endDate)
-      
+
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
       }
-      
+
       // Apply branch filtering: strict filtering for sales (only this branch, no NULL fallback)
       if (branchId !== undefined && branchId !== null) {
         salesQuery = salesQuery.eq('branch_id', branchId)
       } else if (branchId === null) {
         salesQuery = salesQuery.is('branch_id', null)
       }
-      
+
       const { data: salesData } = await salesQuery
 
       const salesAmount = salesData?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0

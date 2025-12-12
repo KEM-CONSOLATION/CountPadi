@@ -400,19 +400,19 @@ export default function SalesForm() {
   // Helper function to normalize date format - handles all possible formats
   const normalizeDate = useCallback((dateStr: string | Date): string => {
     if (!dateStr) return ''
-    
+
     // If it's already a Date object, format it
     if (dateStr instanceof Date) {
       return format(dateStr, 'yyyy-MM-dd')
     }
-    
+
     let str = String(dateStr).trim()
-    
+
     // Handle ISO format with time (2025-12-12T00:00:00.000Z)
     if (str.includes('T')) {
       str = str.split('T')[0]
     }
-    
+
     // Handle DD/MM/YYYY format
     if (str.includes('/')) {
       const parts = str.split('/')
@@ -424,12 +424,12 @@ export default function SalesForm() {
         str = `${year}-${month}-${day}`
       }
     }
-    
+
     // Validate final format (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) {
       console.warn('[SalesForm] Invalid date format after normalization:', dateStr, '->', str)
     }
-    
+
     return str
   }, [])
 
@@ -743,7 +743,7 @@ export default function SalesForm() {
 
       return 0
     })
-  }, [selectedItem, date, openingStocks, restockings, sales, editingSale])
+  }, [selectedItem, date, openingStocks, restockings, sales, editingSale, normalizeDate])
 
   // Auto-select batch when item is selected
   // Priority: Opening Stock first, then restocking batches
@@ -1328,15 +1328,24 @@ export default function SalesForm() {
 
               setDate(selectedDate)
               setMessage(null)
-              
+
               // Force refresh opening stock and restocking for the new date
-              const normalizedDate = normalizeDate(selectedDate)
-              if (normalizedDate && /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-                // Force refresh to get latest data for the selected date
-                fetchOpeningStockFromStore(normalizedDate, organizationId, branchId, true)
-                fetchRestockingFromStore(normalizedDate, organizationId, branchId)
-                fetchSalesFromStore(normalizedDate, organizationId, branchId)
-              }
+              // Use async IIFE to properly await all fetches and prevent race conditions
+              ;(async () => {
+                const normalizedDate = normalizeDate(selectedDate)
+                if (normalizedDate && /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+                  try {
+                    // Await all fetches to ensure data is loaded before component re-renders
+                    await Promise.all([
+                      fetchOpeningStockFromStore(normalizedDate, organizationId, branchId, true),
+                      fetchRestockingFromStore(normalizedDate, organizationId, branchId),
+                      fetchSalesFromStore(normalizedDate, organizationId, branchId),
+                    ])
+                  } catch (error) {
+                    console.error('Error fetching data for new date:', error)
+                  }
+                }
+              })()
             }}
             max={format(new Date(), 'yyyy-MM-dd')}
             required
@@ -1429,13 +1438,15 @@ export default function SalesForm() {
                   itemsInMap: itemMap.size,
                   date: normalizedDate,
                   branchId,
-                  sampleQuantities: Array.from(itemMap.values()).slice(0, 5).map(os => ({
-                    item: os.item?.name,
-                    quantity: os.quantity,
-                    branch_id: os.branch_id,
-                    date: os.date,
-                    normalizedDate: normalizeDate(os.date),
-                  })),
+                  sampleQuantities: Array.from(itemMap.values())
+                    .slice(0, 5)
+                    .map(os => ({
+                      item: os.item?.name,
+                      quantity: os.quantity,
+                      branch_id: os.branch_id,
+                      date: os.date,
+                      normalizedDate: normalizeDate(os.date),
+                    })),
                 })
               } else {
                 console.warn('[SalesForm] No relevant opening stocks found:', {
@@ -1466,14 +1477,21 @@ export default function SalesForm() {
                   }
 
                   // Debug: Log if quantity is 0 but opening stock exists
-                  if (openingQty === 0 && openingStock.quantity !== null && openingStock.quantity !== undefined) {
-                    console.warn(`[SalesForm] ${item.name} has opening stock record but quantity is 0:`, {
-                      openingStockId: openingStock.id,
-                      rawQuantity: openingStock.quantity,
-                      parsedQuantity: openingQty,
-                      date: openingStock.date,
-                      branch_id: openingStock.branch_id,
-                    })
+                  if (
+                    openingQty === 0 &&
+                    openingStock.quantity !== null &&
+                    openingStock.quantity !== undefined
+                  ) {
+                    console.warn(
+                      `[SalesForm] ${item.name} has opening stock record but quantity is 0:`,
+                      {
+                        openingStockId: openingStock.id,
+                        rawQuantity: openingStock.quantity,
+                        parsedQuantity: openingQty,
+                        date: openingStock.date,
+                        branch_id: openingStock.branch_id,
+                      }
+                    )
                   }
 
                   // Restocking from store - prefer branch-specific, fallback to NULL branch_id
@@ -1542,7 +1560,10 @@ export default function SalesForm() {
                   const available = Math.max(0, openingQty + totalRestocking - totalSales)
 
                   // Debug logging for specific items (can be removed later)
-                  if (process.env.NODE_ENV === 'development' && (item.name === 'Garri' || item.name === 'Chicken')) {
+                  if (
+                    process.env.NODE_ENV === 'development' &&
+                    (item.name === 'Garri' || item.name === 'Chicken')
+                  ) {
                     console.log(`[SalesForm] ${item.name} calculation:`, {
                       openingQty,
                       totalRestocking,
@@ -1565,7 +1586,16 @@ export default function SalesForm() {
                     displayText,
                   }
                 })
-                .filter(Boolean) // Remove null entries
+                .filter(
+                  (
+                    item
+                  ): item is {
+                    item: NonNullable<(typeof relevantOpeningStocks)[0]['item']>
+                    openingStock: (typeof relevantOpeningStocks)[0]
+                    available: number
+                    displayText: string
+                  } => item !== null
+                ) // Remove null entries with type guard
                 .sort((a, b) => {
                   // First, sort by available stock: items with stock > 0 come first
                   if (a.available > 0 && b.available === 0) return -1
@@ -1629,11 +1659,14 @@ export default function SalesForm() {
                 }
               })
               const itemsWithOpeningStock = itemMap.size
-              
-              return items.length > 0 && (
-                <span id="item-help" className="text-xs text-gray-500">
-                  ({itemsWithOpeningStock} of {items.length} items with opening stock for {normalizedDate})
-                </span>
+
+              return (
+                items.length > 0 && (
+                  <span id="item-help" className="text-xs text-gray-500">
+                    ({itemsWithOpeningStock} of {items.length} items with opening stock for{' '}
+                    {normalizedDate})
+                  </span>
+                )
               )
             })()}
           </div>
@@ -1715,8 +1748,8 @@ export default function SalesForm() {
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500">
-                    💡 Tip: Select a different batch if the auto-selected one doesn&apos;t have enough
-                    quantity
+                    💡 Tip: Select a different batch if the auto-selected one doesn&apos;t have
+                    enough quantity
                   </p>
                 </div>
               )

@@ -18,8 +18,9 @@ export default function ExpenseStatsCards() {
   useEffect(() => {
     if (organizationId !== null) {
       // Only fetch if organizationId is loaded (null means not loaded yet, undefined means no org)
-    fetchStats()
+      fetchStats()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, organizationId])
 
   const fetchStats = async () => {
@@ -29,7 +30,6 @@ export default function ExpenseStatsCards() {
     const previousDate = format(subDays(new Date(startDate), 1), 'yyyy-MM-dd')
 
     try {
-
       // Fetch previous day sales
       let salesQuery = supabase.from('sales').select('total_price').eq('date', previousDate)
       if (organizationId) salesQuery = salesQuery.eq('organization_id', organizationId)

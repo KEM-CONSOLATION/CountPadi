@@ -89,7 +89,6 @@ export default function LowStockAlerts() {
     }
 
     try {
-
       // Fetch items
       let itemsQuery = supabase.from('items').select('*').order('name')
 

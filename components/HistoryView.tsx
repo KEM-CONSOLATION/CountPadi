@@ -47,7 +47,6 @@ export default function HistoryView() {
 
     setLoading(true)
     try {
-
       // Validate date range
       if (startDate > endDate) {
         alert('Start date cannot be after end date')
