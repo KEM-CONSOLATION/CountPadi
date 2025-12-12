@@ -1,10 +1,13 @@
 # Sitemap HTTP Error - Fix Applied
 
 ## Problem
+
 Google Search Console was reporting "General HTTP error" when trying to read the sitemap at `/sitemap.xml`.
 
 ## Root Cause
+
 The sitemap might have been:
+
 1. Blocked by middleware authentication checks
 2. Missing proper HTTP headers
 3. Not properly configured as a Next.js route
@@ -12,15 +15,18 @@ The sitemap might have been:
 ## Solution Applied
 
 ### 1. Ensured Middleware Allows Sitemap
+
 - Updated `middleware.ts` to explicitly allow `/sitemap.xml` without authentication
 - Added early return for sitemap route
 
 ### 2. Proper Sitemap Configuration
+
 - Using `app/sitemap.ts` (Next.js App Router standard)
 - Added `dynamic = 'force-dynamic'` for proper server-side generation
 - Added `revalidate = 3600` for caching (1 hour)
 
 ### 3. Enhanced Robots.txt
+
 - Added explicit Googlebot rules
 - Ensured sitemap URL is correctly referenced
 
@@ -41,10 +47,13 @@ The sitemap might have been:
 After deployment, verify:
 
 1. **Test sitemap.xml directly**
+
    ```bash
    curl https://countpadi.com/sitemap.xml
    ```
+
    Should return valid XML:
+
    ```xml
    <?xml version="1.0" encoding="UTF-8"?>
    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -59,9 +68,11 @@ After deployment, verify:
    ```
 
 2. **Check HTTP Headers**
+
    ```bash
    curl -I https://countpadi.com/sitemap.xml
    ```
+
    Should return:
    - `HTTP/1.1 200 OK`
    - `Content-Type: application/xml` or `text/xml`

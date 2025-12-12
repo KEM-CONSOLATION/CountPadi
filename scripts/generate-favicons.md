@@ -47,6 +47,7 @@ node scripts/generate-favicons.js
 ## Required Files
 
 After generation, ensure these files exist in `/public/`:
+
 - `favicon.ico` (multi-size ICO file)
 - `favicon.svg` (already exists)
 - `favicon-16x16.png`

@@ -1,24 +1,29 @@
 # robots.txt Unreachable - Fix Applied
 
 ## Problem
+
 Google Search Console was reporting that `robots.txt` is unreachable, preventing proper site indexing.
 
 ## Root Cause
+
 The middleware was processing `robots.txt` and `sitemap.xml` routes, potentially blocking them with authentication checks.
 
 ## Solution Applied
 
 ### 1. Removed Static robots.txt
+
 - Deleted `public/robots.txt` (static file)
 - Using dynamic `app/robots.ts` instead (Next.js App Router standard)
 
 ### 2. Updated Middleware
+
 - Added early return for public SEO files:
   - `/robots.txt`
   - `/sitemap.xml`
   - `/google*.html` (Google verification files)
 
 ### 3. Updated Middleware Matcher
+
 - Excluded SEO files from middleware processing
 - Updated regex to properly exclude:
   - `robots.txt`
@@ -39,10 +44,13 @@ The middleware was processing `robots.txt` and `sitemap.xml` routes, potentially
 After deployment, verify:
 
 1. **Test robots.txt**
+
    ```bash
    curl https://countpadi.com/robots.txt
    ```
+
    Should return:
+
    ```
    User-agent: *
    Allow: /
@@ -50,20 +58,24 @@ After deployment, verify:
    Disallow: /admin/
    Disallow: /dashboard/
    Disallow: /login/
-   
+
    Sitemap: https://countpadi.com/sitemap.xml
    ```
 
 2. **Test sitemap.xml**
+
    ```bash
    curl https://countpadi.com/sitemap.xml
    ```
+
    Should return XML sitemap
 
 3. **Test Google Verification**
+
    ```bash
    curl https://countpadi.com/google15ab47845f9d301c.html
    ```
+
    Should return the verification content
 
 4. **In Google Search Console**
