@@ -28,8 +28,14 @@ export async function GET(request: NextRequest) {
       query = query.eq('organization_id', organization_id)
     }
 
+    // Handle branch_id filtering
+    // For organizations created before branches, we need to check both:
+    // 1. Sales with the selected branch_id
+    // 2. Sales with NULL branch_id (legacy records)
+    // This ensures we don't lose historical data
     if (branch_id) {
-      query = query.eq('branch_id', branch_id)
+      // Use .or() to include both branch-specific and NULL branch_id records
+      query = query.or(`branch_id.eq.${branch_id},branch_id.is.null`)
     }
 
     const { data, error } = await query

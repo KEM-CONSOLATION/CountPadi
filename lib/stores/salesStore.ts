@@ -60,14 +60,22 @@ export const useSalesStore = create<SalesState>((set, get) => ({
         .eq('date', date)
         .order('created_at', { ascending: false })
 
+      // Filter by organization_id when provided
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
       }
 
-      // Always filter by branch_id when provided
+      // Handle branch_id filtering
+      // After migration, all records should have branch_id, but we keep fallback for safety
       if (branchId !== undefined && branchId !== null) {
-        salesQuery = salesQuery.eq('branch_id', branchId)
+        // Primary: filter by branch_id
+        // Fallback: also include NULL branch_id (in case migration missed any)
+        salesQuery = salesQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
+      } else if (branchId === null) {
+        // Explicitly query for NULL branch_id only
+        salesQuery = salesQuery.is('branch_id', null)
       }
+      // If branchId is undefined, don't filter by branch_id at all
 
       const { data, error } = await salesQuery
 
