@@ -15,7 +15,7 @@ export default function LowStockAlerts() {
   const [lowStockItems, setLowStockItems] = useState<LowStockItemWithQuantity[]>([])
   const [loading, setLoading] = useState(true)
   const notifiedItemsRef = useRef<Set<string>>(new Set()) // Track items we've already notified about
-  const { organizationId, user } = useAuth() // Use centralized auth instead of fetching
+  const { organizationId, branchId, user } = useAuth() // Use centralized auth instead of fetching
 
   useEffect(() => {
     if (organizationId) {
@@ -23,6 +23,19 @@ export default function LowStockAlerts() {
       // Refresh every 5 minutes to check for new low stock items
       const interval = setInterval(fetchLowStockItems, 5 * 60 * 1000)
       return () => clearInterval(interval)
+    }
+  }, [organizationId, branchId])
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchLowStockItems()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
     }
   }, [organizationId])
 
@@ -96,6 +109,13 @@ export default function LowStockAlerts() {
         itemsQuery = itemsQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch if provided
+      if (branchId !== undefined && branchId !== null) {
+        itemsQuery = itemsQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        itemsQuery = itemsQuery.is('branch_id', null)
+      }
+
       const { data: items } = await itemsQuery
 
       if (!items) {
@@ -116,6 +136,13 @@ export default function LowStockAlerts() {
         openingStockQuery = openingStockQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch
+      if (branchId !== undefined && branchId !== null) {
+        openingStockQuery = openingStockQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        openingStockQuery = openingStockQuery.is('branch_id', null)
+      }
+
       const { data: openingStock } = await openingStockQuery
 
       // Fetch restocking for today
@@ -128,6 +155,13 @@ export default function LowStockAlerts() {
         restockingQuery = restockingQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch
+      if (branchId !== undefined && branchId !== null) {
+        restockingQuery = restockingQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        restockingQuery = restockingQuery.is('branch_id', null)
+      }
+
       const { data: restocking } = await restockingQuery
 
       // Fetch sales for today
@@ -135,6 +169,13 @@ export default function LowStockAlerts() {
 
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
       }
 
       const { data: sales } = await salesQuery

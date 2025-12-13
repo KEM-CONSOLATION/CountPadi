@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Sale, Item, Profile } from '@/types/database'
 import {
@@ -17,6 +17,8 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import Pagination from './Pagination'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 interface SalesSummary {
   date: string
@@ -26,6 +28,7 @@ interface SalesSummary {
 }
 
 export default function SalesReports() {
+  const { organizationId, branchId } = useAuth()
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const today = format(new Date(), 'yyyy-MM-dd')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -39,33 +42,27 @@ export default function SalesReports() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10 // Reduced to show pagination more readily
 
-  useEffect(() => {
-    fetchReports()
-    setCurrentPage(1) // Reset to first page when period/date changes
-  }, [selectedPeriod, selectedDate])
-
-  const fetchReports = async () => {
-    setLoading(true)
-    try {
-      if (selectedPeriod === 'daily') {
-        await fetchDailySales()
-      } else if (selectedPeriod === 'weekly') {
-        await fetchWeeklySales()
-      } else {
-        await fetchMonthlySales()
-      }
-    } catch (error) {
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchDailySales = async () => {
-    const { data: salesData } = await supabase
+  const fetchDailySales = useCallback(async () => {
+    let query = supabase
       .from('sales')
       .select('*, item:items(*), recorded_by_profile:profiles(*)')
       .eq('date', selectedDate)
       .order('created_at', { ascending: false })
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch, no NULL fallback for reports)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      // For organizations without branches yet, show NULL branch_id only
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (salesData) {
       const sales = salesData as (Sale & { item?: Item; recorded_by_profile?: Profile })[]
@@ -79,19 +76,33 @@ export default function SalesReports() {
         sales_count: sales.length,
       })
     }
-  }
+  }, [selectedDate, organizationId, branchId])
 
-  const fetchWeeklySales = async () => {
+  const fetchWeeklySales = useCallback(async () => {
     const weekStart = startOfWeek(new Date(selectedDate), { weekStartsOn: 1 })
     const weekEnd = endOfWeek(new Date(selectedDate), { weekStartsOn: 1 })
 
-    const { data: salesData } = await supabase
+    let query = supabase
       .from('sales')
       .select('*, item:items(*), recorded_by_profile:profiles(*)')
       .gte('date', format(weekStart, 'yyyy-MM-dd'))
       .lte('date', format(weekEnd, 'yyyy-MM-dd'))
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch, no NULL fallback for reports)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (salesData) {
       const sales = salesData as (Sale & { item?: Item; recorded_by_profile?: Profile })[]
@@ -105,19 +116,33 @@ export default function SalesReports() {
         sales_count: sales.length,
       })
     }
-  }
+  }, [selectedDate, organizationId, branchId])
 
-  const fetchMonthlySales = async () => {
+  const fetchMonthlySales = useCallback(async () => {
     const monthStart = startOfMonth(new Date(selectedDate))
     const monthEnd = endOfMonth(new Date(selectedDate))
 
-    const { data: salesData } = await supabase
+    let query = supabase
       .from('sales')
       .select('*, item:items(*), recorded_by_profile:profiles(*)')
       .gte('date', format(monthStart, 'yyyy-MM-dd'))
       .lte('date', format(monthEnd, 'yyyy-MM-dd'))
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch, no NULL fallback for reports)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (salesData) {
       const sales = salesData as (Sale & { item?: Item; recorded_by_profile?: Profile })[]
@@ -131,7 +156,34 @@ export default function SalesReports() {
         sales_count: sales.length,
       })
     }
-  }
+  }, [selectedDate, organizationId, branchId])
+
+  // Define fetchReports after all fetch functions are defined
+  const fetchReports = useCallback(async () => {
+    setLoading(true)
+    try {
+      if (selectedPeriod === 'daily') {
+        await fetchDailySales()
+      } else if (selectedPeriod === 'weekly') {
+        await fetchWeeklySales()
+      } else {
+        await fetchMonthlySales()
+      }
+    } catch (error) {
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedPeriod, fetchDailySales, fetchWeeklySales, fetchMonthlySales])
+
+  useEffect(() => {
+    fetchReports()
+    setCurrentPage(1) // Reset to first page when period/date changes
+  }, [selectedPeriod, selectedDate, fetchReports])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    fetchReports()
+  })
 
   const currentReport =
     selectedPeriod === 'daily'

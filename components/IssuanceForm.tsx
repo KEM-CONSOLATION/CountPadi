@@ -35,6 +35,21 @@ export default function IssuanceForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, branchId, isTenantAdmin])
 
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchItems(organizationId, branchId || null)
+        fetchStaff()
+        fetchIssuances()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, branchId])
+
   const fetchStaff = async () => {
     try {
       const {

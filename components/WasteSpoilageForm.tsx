@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Item, WasteSpoilage, Profile } from '@/types/database'
 import { format } from 'date-fns'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 export default function WasteSpoilageForm() {
+  const { organizationId, branchId } = useAuth()
   const [items, setItems] = useState<Item[]>([])
   const [wasteSpoilage, setWasteSpoilage] = useState<
     (WasteSpoilage & { item?: Item; recorded_by_profile?: Profile })[]
@@ -21,6 +24,59 @@ export default function WasteSpoilageForm() {
   const [editingRecord, setEditingRecord] = useState<WasteSpoilage | null>(null)
   const [userRole, setUserRole] = useState<'admin' | 'staff' | 'superadmin' | null>(null)
   const today = format(new Date(), 'yyyy-MM-dd')
+
+  const fetchItems = useCallback(async () => {
+    let query = supabase.from('items').select('*').order('name')
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch if provided
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data } = await query
+    if (data) {
+      setItems(data)
+    }
+  }, [organizationId, branchId])
+
+  const fetchWasteSpoilage = useCallback(async () => {
+    let query = supabase
+      .from('waste_spoilage')
+      .select(
+        `
+        *,
+        item:items(*),
+        recorded_by_profile:profiles(*)
+      `
+      )
+      .eq('date', date)
+      .order('created_at', { ascending: false })
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data, error } = await query
+
+    if (!error && data) {
+      setWasteSpoilage(data)
+    }
+  }, [date, organizationId, branchId])
 
   useEffect(() => {
     fetchItems()
@@ -39,8 +95,13 @@ export default function WasteSpoilageForm() {
 
   useEffect(() => {
     fetchWasteSpoilage()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date])
+  }, [fetchWasteSpoilage])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    fetchItems()
+    fetchWasteSpoilage()
+  })
 
   const checkUserRole = async () => {
     const {
@@ -55,31 +116,6 @@ export default function WasteSpoilageForm() {
       if (profile) {
         setUserRole(profile.role)
       }
-    }
-  }
-
-  const fetchItems = async () => {
-    const { data } = await supabase.from('items').select('*').order('name')
-    if (data) {
-      setItems(data)
-    }
-  }
-
-  const fetchWasteSpoilage = async () => {
-    const { data, error } = await supabase
-      .from('waste_spoilage')
-      .select(
-        `
-        *,
-        item:items(*),
-        recorded_by_profile:profiles(*)
-      `
-      )
-      .eq('date', date)
-      .order('created_at', { ascending: false })
-
-    if (!error && data) {
-      setWasteSpoilage(data)
     }
   }
 

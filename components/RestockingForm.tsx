@@ -84,7 +84,20 @@ export default function RestockingForm() {
     if (!isAdmin) {
       setDate(today)
     }
-  }, [userRole, fetchRestockings, isAdmin])
+  }, [userRole, fetchRestockings, isAdmin, branchId])
+
+  // Listen for branch changes and refetch data
+  useEffect(() => {
+    const handleBranchChange = () => {
+      fetchItems()
+      fetchRestockings()
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]) // Refetch when branchId changes
 
   useEffect(() => {
     if (selectedItem && date) {

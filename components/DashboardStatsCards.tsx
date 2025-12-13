@@ -123,6 +123,17 @@ export default function DashboardStatsCards({ userRole }: DashboardStatsCardsPro
     fetchStats()
   }, [fetchStats])
 
+  // Listen for branch changes and refetch stats
+  useEffect(() => {
+    const handleBranchChange = () => {
+      fetchStats()
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [fetchStats])
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

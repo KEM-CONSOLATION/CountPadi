@@ -16,7 +16,7 @@ export default function ProfitLossStatsCards() {
   const [loading, setLoading] = useState(true)
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const { organizationId, profile } = useAuth() // Use centralized auth
+  const { organizationId, branchId, profile } = useAuth() // Use centralized auth
 
   useEffect(() => {
     if (
@@ -27,7 +27,24 @@ export default function ProfitLossStatsCards() {
       fetchStats()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, organizationId, profile?.role])
+  }, [startDate, endDate, organizationId, branchId, profile?.role])
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (
+        organizationId !== null &&
+        profile?.role &&
+        ['branch_manager', 'admin', 'tenant_admin'].includes(profile.role)
+      ) {
+        fetchStats()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, profile?.role, startDate, endDate])
 
   const fetchStats = async () => {
     if (organizationId === null) return // Wait for auth to load
@@ -54,6 +71,13 @@ export default function ProfitLossStatsCards() {
 
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
       }
 
       const { data: sales } = await salesQuery
@@ -103,6 +127,13 @@ export default function ProfitLossStatsCards() {
 
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        expensesQuery = expensesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        expensesQuery = expensesQuery.is('branch_id', null)
       }
 
       const { data: expenses } = await expensesQuery

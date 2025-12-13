@@ -13,7 +13,7 @@ export default function ExpenseStatsCards() {
   const [loading, setLoading] = useState(true)
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const { organizationId } = useAuth() // Use centralized auth instead of fetching
+  const { organizationId, branchId } = useAuth() // Use centralized auth instead of fetching
 
   useEffect(() => {
     if (organizationId !== null) {
@@ -21,7 +21,20 @@ export default function ExpenseStatsCards() {
       fetchStats()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, organizationId])
+  }, [startDate, endDate, organizationId, branchId])
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId !== null) {
+        fetchStats()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, startDate, endDate])
 
   const fetchStats = async () => {
     if (organizationId === null) return // Wait for auth to load
@@ -33,6 +46,14 @@ export default function ExpenseStatsCards() {
       // Fetch previous day sales
       let salesQuery = supabase.from('sales').select('total_price').eq('date', previousDate)
       if (organizationId) salesQuery = salesQuery.eq('organization_id', organizationId)
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
+      }
+
       const { data: sales } = await salesQuery
 
       const salesTotal = sales?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
@@ -58,6 +79,14 @@ export default function ExpenseStatsCards() {
         .gte('date', startDate)
         .lte('date', endDate)
       if (organizationId) expensesQuery = expensesQuery.eq('organization_id', organizationId)
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        expensesQuery = expensesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        expensesQuery = expensesQuery.is('branch_id', null)
+      }
+
       const { data: expenses } = await expensesQuery
 
       const expensesTotal = (expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0)

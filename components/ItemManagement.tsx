@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { useItemsStore } from '@/lib/stores/itemsStore'
 
 export default function ItemManagement() {
-  const { organizationId, branchId } = useAuth()
+  const { organizationId, branchId, isAdmin } = useAuth()
   const { items, fetchItems: fetchItemsFromStore } = useItemsStore()
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -25,7 +25,24 @@ export default function ItemManagement() {
 
   useEffect(() => {
     if (organizationId) {
+      // Management section:
+      // - Admins with "All Branches" selected (branchId = null): see all items
+      // - Admins with specific branch selected: see only that branch's items
+      // - Branch managers/staff: see only their branch's items
       fetchItemsFromStore(organizationId, branchId)
+    }
+  }, [organizationId, branchId, fetchItemsFromStore])
+
+  // Listen for branch changes (for admins switching branches)
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchItemsFromStore(organizationId, branchId)
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
     }
   }, [organizationId, branchId, fetchItemsFromStore])
 

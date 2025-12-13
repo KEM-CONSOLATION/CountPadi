@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Sale, Item } from '@/types/database'
 import {
@@ -26,19 +26,18 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 export default function SalesTrendChart() {
+  const { organizationId, branchId } = useAuth()
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [dailyData, setDailyData] = useState<{ day: string; sales: number }[]>([])
   const [weeklyData, setWeeklyData] = useState<{ week: string; sales: number }[]>([])
   const [monthlyData, setMonthlyData] = useState<{ month: string; sales: number }[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    fetchData()
-  }, [period])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       if (period === 'daily') {
@@ -52,9 +51,18 @@ export default function SalesTrendChart() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period, organizationId, branchId])
 
-  const fetchDailyData = async () => {
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    fetchData()
+  })
+
+  const fetchDailyData = useCallback(async () => {
     const days: { day: string; sales: number }[] = []
 
     // Get last 7 days
@@ -64,10 +72,21 @@ export default function SalesTrendChart() {
       const dateStr = format(date, 'yyyy-MM-dd')
       const dayLabel = format(date, 'EEE, MMM dd')
 
-      const { data: salesData } = await supabase
-        .from('sales')
-        .select('total_price')
-        .eq('date', dateStr)
+      let query = supabase.from('sales').select('total_price').eq('date', dateStr)
+
+      // Filter by organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        query = query.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        query = query.is('branch_id', null)
+      }
+
+      const { data: salesData } = await query
 
       const totalSales = salesData?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
 
@@ -78,9 +97,9 @@ export default function SalesTrendChart() {
     }
 
     setDailyData(days)
-  }
+  }, [organizationId, branchId])
 
-  const fetchWeeklyData = async () => {
+  const fetchWeeklyData = useCallback(async () => {
     const weeks = eachWeekOfInterval({
       start: subWeeks(new Date(), 7),
       end: new Date(),
@@ -93,11 +112,25 @@ export default function SalesTrendChart() {
       const startDate = format(weekStart, 'yyyy-MM-dd')
       const endDate = format(weekEnd, 'yyyy-MM-dd')
 
-      const { data: salesData } = await supabase
+      let query = supabase
         .from('sales')
         .select('total_price')
         .gte('date', startDate)
         .lte('date', endDate)
+
+      // Filter by organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        query = query.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        query = query.is('branch_id', null)
+      }
+
+      const { data: salesData } = await query
 
       const totalSales = salesData?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
 
@@ -108,9 +141,9 @@ export default function SalesTrendChart() {
     }
 
     setWeeklyData(weeklySales)
-  }
+  }, [organizationId, branchId])
 
-  const fetchMonthlyData = async () => {
+  const fetchMonthlyData = useCallback(async () => {
     const months = eachMonthOfInterval({
       start: subMonths(new Date(), 5),
       end: new Date(),
@@ -123,11 +156,25 @@ export default function SalesTrendChart() {
       const startDate = format(monthStart, 'yyyy-MM-dd')
       const endDate = format(monthEnd, 'yyyy-MM-dd')
 
-      const { data: salesData } = await supabase
+      let query = supabase
         .from('sales')
         .select('total_price')
         .gte('date', startDate)
         .lte('date', endDate)
+
+      // Filter by organization
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        query = query.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        query = query.is('branch_id', null)
+      }
+
+      const { data: salesData } = await query
 
       const totalSales = salesData?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
 
@@ -138,7 +185,7 @@ export default function SalesTrendChart() {
     }
 
     setMonthlyData(monthlySales)
-  }
+  }, [organizationId, branchId])
 
   const data = period === 'daily' ? dailyData : period === 'weekly' ? weeklyData : monthlyData
 

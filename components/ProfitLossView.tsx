@@ -12,6 +12,7 @@ import {
   formatDate,
 } from '@/lib/export-utils'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 export default function ProfitLossView() {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -33,14 +34,21 @@ export default function ProfitLossView() {
       profit: number
     }>
   >([])
-  const { organization, organizationId } = useAuth() // Use centralized auth
+  const { organization, organizationId, branchId } = useAuth() // Use centralized auth
 
   useEffect(() => {
     if (organizationId !== null) {
       // Only fetch if organizationId is loaded
       calculateProfitLoss()
     }
-  }, [startDate, endDate, organizationId])
+  }, [startDate, endDate, organizationId, branchId])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    if (organizationId !== null) {
+      calculateProfitLoss()
+    }
+  })
 
   const calculateProfitLoss = async () => {
     if (organizationId === null) return // Wait for auth to load
@@ -131,6 +139,13 @@ export default function ProfitLossView() {
 
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        expensesQuery = expensesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        expensesQuery = expensesQuery.is('branch_id', null)
       }
 
       const { data: expenses } = await expensesQuery

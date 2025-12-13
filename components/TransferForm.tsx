@@ -44,6 +44,18 @@ export default function TransferForm() {
     init()
   }, [branchId, organizationId, fromDate, toDate])
 
+  // Listen for branch changes and refetch data
+  useEffect(() => {
+    const handleBranchChange = () => {
+      fetchItems()
+      fetchTransfers()
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [])
+
   const fetchItems = async () => {
     if (!organizationId) return
     const { data } = await supabase

@@ -616,14 +616,43 @@ export default function SalesForm() {
   useEffect(() => {
     const handleFocus = () => {
       if (organizationId) {
-        fetchItemsFromStore(organizationId)
+        fetchItemsFromStore(organizationId, branchId)
       }
       fetchOpeningStockCallback()
       fetchRestockingCallback()
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchOpeningStockCallback, fetchRestockingCallback, organizationId, fetchItemsFromStore])
+  }, [
+    fetchOpeningStockCallback,
+    fetchRestockingCallback,
+    organizationId,
+    fetchItemsFromStore,
+    branchId,
+  ])
+
+  // Listen for branch changes and refetch all data
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchItemsFromStore(organizationId, branchId)
+      }
+      fetchSalesCallback()
+      fetchOpeningStockCallback()
+      fetchRestockingCallback()
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [
+    organizationId,
+    branchId,
+    fetchSalesCallback,
+    fetchOpeningStockCallback,
+    fetchRestockingCallback,
+    fetchItemsFromStore,
+  ])
 
   useEffect(() => {
     if (selectedBatch && quantity) {

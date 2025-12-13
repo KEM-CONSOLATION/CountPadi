@@ -96,12 +96,24 @@ export default function DailyStockReport({ type }: { type: 'opening' | 'closing'
     fetchReport()
     setEditingItems({}) // Reset editing state when date changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate])
+  }, [selectedDate, branchId])
+
+  // Listen for branch changes and refetch report
+  useEffect(() => {
+    const handleBranchChange = () => {
+      fetchReport()
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [selectedDate, branchId])
 
   const fetchReport = async () => {
     setLoading(true)
     try {
       // Pass branch_id to match SalesForm's branch context
+      // For admins switching branches, this will filter to the selected branch
       const branchParam = branchId ? `&branch_id=${branchId}` : ''
       const response = await fetch(`/api/stock/report?date=${selectedDate}${branchParam}`)
       const data = await response.json()

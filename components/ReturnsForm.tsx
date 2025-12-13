@@ -27,6 +27,20 @@ export default function ReturnsForm() {
     }
   }, [date, organizationId, branchId])
 
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchIssuances()
+        fetchReturns()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, date])
+
   const fetchIssuances = async () => {
     if (!organizationId) return
     setLoadingData(true)

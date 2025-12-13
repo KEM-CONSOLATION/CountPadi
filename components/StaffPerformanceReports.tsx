@@ -31,6 +31,19 @@ export default function StaffPerformanceReports() {
     }
   }, [period, date, organizationId, branchId])
 
+  // Listen for branch changes and refetch performance data
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId) {
+        fetchPerformance()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, period, date])
+
   const getDateRange = () => {
     const dateObj = new Date(date)
     switch (period) {

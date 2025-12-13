@@ -28,14 +28,27 @@ export default function HistoryView() {
   const [activeTab, setActiveTab] = useState<'opening' | 'closing' | 'sales'>('opening')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10 // Reduced to show pagination more readily
-  const { organization, organizationId } = useAuth() // Use centralized auth
+  const { organization, organizationId, branchId } = useAuth() // Use centralized auth
 
   useEffect(() => {
     if (organizationId !== null) {
       // Only fetch if organizationId is loaded
       fetchData()
     }
-  }, [startDate, endDate, organizationId])
+  }, [startDate, endDate, organizationId, branchId])
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId !== null) {
+        fetchData()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, startDate, endDate])
 
   // Reset pagination when tab or date range changes
   useEffect(() => {
@@ -75,6 +88,13 @@ export default function HistoryView() {
         openingQuery = openingQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch - include branch-specific AND NULL branch_id (for legacy data fallback)
+      if (branchId !== undefined && branchId !== null) {
+        openingQuery = openingQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
+      } else if (branchId === null) {
+        openingQuery = openingQuery.is('branch_id', null)
+      }
+
       const { data: openingData } = await openingQuery
 
       if (openingData) {
@@ -96,6 +116,13 @@ export default function HistoryView() {
         closingQuery = closingQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch - include branch-specific AND NULL branch_id (for legacy data fallback)
+      if (branchId !== undefined && branchId !== null) {
+        closingQuery = closingQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
+      } else if (branchId === null) {
+        closingQuery = closingQuery.is('branch_id', null)
+      }
+
       const { data: closingData } = await closingQuery
 
       if (closingData) {
@@ -115,6 +142,13 @@ export default function HistoryView() {
 
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch, no NULL fallback)
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
       }
 
       const { data: salesData } = await salesQuery

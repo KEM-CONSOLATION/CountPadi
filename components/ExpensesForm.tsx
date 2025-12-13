@@ -12,6 +12,7 @@ import {
   formatDate,
 } from '@/lib/export-utils'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 export default function ExpensesForm() {
   const { organizationId, branchId } = useAuth()
@@ -34,7 +35,13 @@ export default function ExpensesForm() {
     fetchExpenses()
     fetchPreviousDaySales()
     fetchOrganization()
-  }, [startDate, endDate, date])
+  }, [startDate, endDate, date, organizationId, branchId])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    fetchExpenses()
+    fetchPreviousDaySales()
+  })
 
   const fetchOrganization = async () => {
     try {
@@ -103,11 +110,16 @@ export default function ExpensesForm() {
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
 
+    // Filter by organization
     if (organizationId) {
       expensesQuery = expensesQuery.eq('organization_id', organizationId)
     }
-    if (branchId) {
+
+    // Filter by branch - strict filtering (only this branch)
+    if (branchId !== undefined && branchId !== null) {
       expensesQuery = expensesQuery.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      expensesQuery = expensesQuery.is('branch_id', null)
     }
 
     const { data, error } = await expensesQuery

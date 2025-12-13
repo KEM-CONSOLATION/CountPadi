@@ -29,14 +29,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle branch_id filtering
-    // For organizations created before branches, we need to check both:
-    // 1. Sales with the selected branch_id
-    // 2. Sales with NULL branch_id (legacy records)
-    // This ensures we don't lose historical data
-    if (branch_id) {
-      // Use .or() to include both branch-specific and NULL branch_id records
-      query = query.or(`branch_id.eq.${branch_id},branch_id.is.null`)
+    // Strict filtering: only show data for the specified branch
+    // When branch_id is provided, show ONLY that branch's data (no NULL fallback)
+    // When branch_id is explicitly null (empty string), show only NULL branch_id records
+    if (branch_id && branch_id !== 'null') {
+      query = query.eq('branch_id', branch_id)
+    } else if (branch_id === 'null') {
+      query = query.is('branch_id', null)
     }
+    // If branch_id is not provided, don't filter by branch (show all branches)
 
     const { data, error } = await query
 

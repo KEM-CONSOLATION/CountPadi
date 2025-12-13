@@ -11,8 +11,11 @@ import {
   formatDate,
 } from '@/lib/export-utils'
 import { Sale, Item, Expense, Organization } from '@/types/database'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 export default function DashboardExportButton() {
+  const { organizationId, branchId } = useAuth()
   const [exporting, setExporting] = useState(false)
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -93,6 +96,13 @@ export default function DashboardExportButton() {
         salesQuery = salesQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
+      }
+
       const { data: sales } = await salesQuery
 
       // Fetch expenses for date range
@@ -106,6 +116,13 @@ export default function DashboardExportButton() {
 
       if (organizationId) {
         expensesQuery = expensesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        expensesQuery = expensesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        expensesQuery = expensesQuery.is('branch_id', null)
       }
 
       const { data: expenses } = await expensesQuery

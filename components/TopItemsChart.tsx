@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Sale, Item } from '@/types/database'
 import {
@@ -23,19 +23,18 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { useBranchChangeListener } from '@/lib/hooks/useBranchChangeListener'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a855f7', '#c084fc', '#d8b4fe', '#e9d5ff', '#f3e8ff']
 
 export default function TopItemsChart() {
+  const { organizationId, branchId } = useAuth()
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [topItems, setTopItems] = useState<{ name: string; quantity: number; sales: number }[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    fetchData()
-  }, [period])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       if (period === 'daily') {
@@ -49,15 +48,35 @@ export default function TopItemsChart() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period, organizationId, branchId])
 
-  const fetchDailyData = async () => {
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Listen for branch changes
+  useBranchChangeListener(() => {
+    fetchData()
+  })
+
+  const fetchDailyData = useCallback(async () => {
     const today = format(new Date(), 'yyyy-MM-dd')
 
-    const { data: salesData } = await supabase
-      .from('sales')
-      .select('*, item:items(*)')
-      .eq('date', today)
+    let query = supabase.from('sales').select('*, item:items(*)').eq('date', today)
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (!salesData) return
 
@@ -86,19 +105,33 @@ export default function TopItemsChart() {
       .slice(0, 7)
 
     setTopItems(items)
-  }
+  }, [organizationId, branchId])
 
-  const fetchWeeklyData = async () => {
+  const fetchWeeklyData = useCallback(async () => {
     const weekStart = startOfWeek(new Date())
     const weekEnd = endOfWeek(new Date())
     const startDate = format(weekStart, 'yyyy-MM-dd')
     const endDate = format(weekEnd, 'yyyy-MM-dd')
 
-    const { data: salesData } = await supabase
+    let query = supabase
       .from('sales')
       .select('*, item:items(*)')
       .gte('date', startDate)
       .lte('date', endDate)
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (!salesData) return
 
@@ -127,19 +160,33 @@ export default function TopItemsChart() {
       .slice(0, 7)
 
     setTopItems(items)
-  }
+  }, [organizationId, branchId])
 
-  const fetchMonthlyData = async () => {
+  const fetchMonthlyData = useCallback(async () => {
     const monthStart = startOfMonth(new Date())
     const monthEnd = endOfMonth(new Date())
     const startDate = format(monthStart, 'yyyy-MM-dd')
     const endDate = format(monthEnd, 'yyyy-MM-dd')
 
-    const { data: salesData } = await supabase
+    let query = supabase
       .from('sales')
       .select('*, item:items(*)')
       .gte('date', startDate)
       .lte('date', endDate)
+
+    // Filter by organization
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    // Filter by branch - strict filtering (only this branch)
+    if (branchId !== undefined && branchId !== null) {
+      query = query.eq('branch_id', branchId)
+    } else if (branchId === null) {
+      query = query.is('branch_id', null)
+    }
+
+    const { data: salesData } = await query
 
     if (!salesData) return
 
@@ -168,7 +215,7 @@ export default function TopItemsChart() {
       .slice(0, 7)
 
     setTopItems(items)
-  }
+  }, [organizationId, branchId])
 
   return (
     <div className="bg-white shadow rounded-lg p-6">

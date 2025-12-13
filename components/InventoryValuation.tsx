@@ -23,14 +23,27 @@ export default function InventoryValuation() {
   const [totalSellingValue, setTotalSellingValue] = useState(0)
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date(), 'yyyy-MM-dd'))
-  const { organization, organizationId } = useAuth() // Use centralized auth
+  const { organization, organizationId, branchId } = useAuth() // Use centralized auth
 
   useEffect(() => {
     if (organizationId !== null) {
       // Only fetch if organizationId is loaded
       fetchValuation()
     }
-  }, [selectedDate, organizationId])
+  }, [selectedDate, organizationId, branchId])
+
+  // Listen for branch changes
+  useEffect(() => {
+    const handleBranchChange = () => {
+      if (organizationId !== null) {
+        fetchValuation()
+      }
+    }
+    window.addEventListener('branchChanged', handleBranchChange)
+    return () => {
+      window.removeEventListener('branchChanged', handleBranchChange)
+    }
+  }, [organizationId, selectedDate])
 
   const fetchValuation = async () => {
     if (organizationId === null) return // Wait for auth to load
@@ -42,6 +55,13 @@ export default function InventoryValuation() {
 
       if (organizationId) {
         itemsQuery = itemsQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch if provided
+      if (branchId !== undefined && branchId !== null) {
+        itemsQuery = itemsQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        itemsQuery = itemsQuery.is('branch_id', null)
       }
 
       const { data: items } = await itemsQuery
@@ -58,6 +78,13 @@ export default function InventoryValuation() {
         openingStockQuery = openingStockQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch - include branch-specific AND NULL branch_id (for legacy data fallback)
+      if (branchId !== undefined && branchId !== null) {
+        openingStockQuery = openingStockQuery.or(`branch_id.eq.${branchId},branch_id.is.null`)
+      } else if (branchId === null) {
+        openingStockQuery = openingStockQuery.is('branch_id', null)
+      }
+
       const { data: openingStock } = await openingStockQuery
 
       // Fetch restocking for selected date
@@ -70,6 +97,13 @@ export default function InventoryValuation() {
         restockingQuery = restockingQuery.eq('organization_id', organizationId)
       }
 
+      // Filter by branch
+      if (branchId !== undefined && branchId !== null) {
+        restockingQuery = restockingQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        restockingQuery = restockingQuery.is('branch_id', null)
+      }
+
       const { data: restocking } = await restockingQuery
 
       // Fetch sales for selected date
@@ -77,6 +111,13 @@ export default function InventoryValuation() {
 
       if (organizationId) {
         salesQuery = salesQuery.eq('organization_id', organizationId)
+      }
+
+      // Filter by branch - strict filtering (only this branch)
+      if (branchId !== undefined && branchId !== null) {
+        salesQuery = salesQuery.eq('branch_id', branchId)
+      } else if (branchId === null) {
+        salesQuery = salesQuery.is('branch_id', null)
       }
 
       const { data: sales } = await salesQuery
