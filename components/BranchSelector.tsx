@@ -50,9 +50,14 @@ export default function BranchSelector() {
           setCurrentBranch(branch || null)
         }}
         aria-label="Select branch"
-        className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white cursor-pointer min-h-[36px] sm:min-h-[44px] touch-manipulation max-w-[120px] sm:max-w-[180px] md:max-w-none"
+        className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white cursor-pointer min-h-[36px] sm:min-h-[44px] touch-manipulation max-w-[120px] sm:max-w-[180px] md:max-w-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%22%3E%3C/polyline%3E%3C/svg%3E')] bg-[length:1em_1em] bg-[right_0.5em_center] bg-no-repeat pr-8 sm:pr-10"
         disabled={loading}
-        style={{ textOverflow: 'ellipsis' }}
+        style={{
+          textOverflow: 'ellipsis',
+          WebkitAppearance: 'none',
+          MozAppearance: 'none',
+          appearance: 'none',
+        }}
       >
         <option value="">All Branches</option>
         {availableBranches.map(branch => (
